@@ -59,7 +59,7 @@ cd inventario_maestranza
 python -m venv env
 # Activar entorno
 env\Scripts\activate      # En Windows
-source env/bin/activate   # En macOS/Linux
+source env/bin/activate     # En macOS/Linux
 ```
 
 ### 📦 Instalar dependencias
@@ -73,16 +73,36 @@ pip install -r requirements.txt
 En la raíz del proyecto:
 
 ```
-SECRET_KEY= clave_secreta_entregada_por_el_admin
+SECRET_KEY=clave_secreta_entregada_por_el_admin
 DEBUG=True
 ```
 
-### 🧱 Ejecutar migraciones
+---
+
+### ⚙️ Inicializar la base de datos con modelo de usuario personalizado
+
+> ⚠️ Si es la primera vez que trabajas con este proyecto (o vas a clonar desde cero), elimina las migraciones previas y la base de datos si ya existen para evitar conflictos con el modelo de usuario personalizado.
 
 ```bash
+# Solo si es la primera vez (y no tienes datos importantes)
+rm db.sqlite3
+rmdir /s /q inventario\migrations
+rmdir /s /q usuarios\migrations
+```
+
+> En macOS/Linux cambia `\` por `/` y usa `rm -r`.
+
+---
+
+### 🧱 Crear nuevas migraciones y aplicarlas
+
+```bash
+python manage.py makemigrations usuarios inventario
 python manage.py migrate
 python manage.py createsuperuser  # (opcional)
 ```
+
+---
 
 ### ▶️ Iniciar el servidor
 
