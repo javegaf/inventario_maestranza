@@ -1,0 +1,19 @@
+# Entorno virtual
+env/
+
+# Archivos temporales
+__pycache__/
+*.py[cod]
+*.log
+
+# Configuración local
+.env
+db.sqlite3
+
+# Archivos del sistema
+*.DS_Store
+*.bak
+*.swp
+
+# Archivos estáticos generados (opcional si se usan collectstatic)
+staticfiles/
