@@ -114,6 +114,59 @@ Abre en navegador: http://127.0.0.1:8000
 
 ---
 
+### 🔐 Acceder al panel de administración
+
+Visita: [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin)
+
+Inicia sesión con el superusuario que creaste para gestionar:
+
+- Productos
+- Movimientos de inventario
+- Proveedores
+- Proyectos y asignaciones
+- Usuarios con roles personalizados
+
+---
+
+### 👤 Roles disponibles en el sistema
+
+El modelo `Usuario` tiene un campo `rol` con las siguientes opciones:
+
+- `administrador`
+- `gestor`
+- `auditor`
+- `logistica`
+- `comprador`
+- `produccion`
+
+Estos roles pueden usarse para restringir funcionalidades y vistas específicas en el sistema (como vistas de stock, alertas, entradas/salidas, etc.).
+
+---
+
+### 📦 Cargar datos iniciales (opcional)
+
+Si cuentas con archivos de datos de ejemplo (fixtures), puedes cargarlos con:
+
+```bash
+python manage.py loaddata nombre_archivo.json
+```
+
+Los fixtures pueden contener productos, proveedores, usuarios de prueba, etc.
+
+---
+
+### ⚠️ Nota para usuarios de PowerShell
+
+Recuerda ejecutar comandos como:
+
+```bash
+python .\manage.py runserver
+```
+
+en lugar de `python manage.py runserver`, ya que PowerShell requiere `.\` para ejecutar archivos del directorio actual.
+
+---
+
 ## 📌 Notas adicionales
 
 - Si una carpeta está vacía pero quieres mantenerla en Git, agrega un archivo `.gitkeep`.
@@ -122,7 +175,19 @@ Abre en navegador: http://127.0.0.1:8000
 
 ---
 
-## 🤝 Créditos
+## 🤝 Cómo contribuir
+
+1. Haz un fork del repositorio
+2. Crea una nueva rama: `git checkout -b nueva-funcionalidad`
+3. Realiza tus cambios y haz commit: `git commit -m 'Agrega nueva funcionalidad'`
+4. Sube tu rama: `git push origin nueva-funcionalidad`
+5. Abre un Pull Request
+
+Este proyecto es académico, pero sigue buenas prácticas de colaboración Git.
+
+---
+
+## 🧾 Créditos
 
 Proyecto desarrollado por estudiantes de Ingeniería en Informática  
 **Asignatura:** Gestión Ágil de Proyectos  
