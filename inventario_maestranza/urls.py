@@ -1,9 +1,15 @@
+"""
+Definiciones de rutas principales del proyecto Django.
+Este archivo conecta las rutas globales del proyecto con las apps internas:
+- 'usuarios': manejo de autenticación, perfil y página de inicio.
+- 'inventario': gestión de productos, movimientos, proveedores, reportes, etc.
+"""
+
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('usuarios.urls')),  # Ruta raíz y home
-    path('', include('inventario.urls')),
-    path('usuarios/', include('usuarios.urls')),  # Para vista de perfil, login
+    path('', include('usuarios.urls')),        # Home y perfil
+    path('', include('inventario.urls')),      # Productos, movimientos, etc.
 ]
