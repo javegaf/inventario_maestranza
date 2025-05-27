@@ -1,0 +1,12 @@
+{# templates/registro_login/register.html #}
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Registro de usuario{% endblock %}
+{% block content %}
+<h2>Registrarse</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-success">Registrar</button>
+</form>
+{% endblock %}

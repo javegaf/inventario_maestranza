@@ -1,0 +1,35 @@
+[
+    {
+        "model": "usuarios.usuario",
+        "pk": 1,
+        "fields": {
+            "username": "admin_maestranza",
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "is_superuser": true,
+            "is_staff": true,
+            "is_active": true
+        }
+    },
+    {
+        "model": "usuarios.usuario",
+        "pk": 2,
+        "fields": {
+            "username": "auditor_logistico",
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "is_superuser": false,
+            "is_staff": true,
+            "is_active": true
+        }
+    },
+    {
+        "model": "usuarios.usuario",
+        "pk": 3,
+        "fields": {
+            "username": "operador_bodega",
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "is_superuser": false,
+            "is_staff": false,
+            "is_active": true
+        }
+    }
+]
