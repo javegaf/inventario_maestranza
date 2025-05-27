@@ -1,0 +1,302 @@
+[
+    {
+        "model": "inventario.proveedor",
+        "pk": 1,
+        "fields": {
+            "nombre": "Proveedora Minera del Norte",
+            "contacto": "Carlos Araya",
+            "correo": "caraya@proveedornorte.cl",
+            "telefono": "522345678"
+        }
+    },
+    {
+        "model": "inventario.proveedor",
+        "pk": 2,
+        "fields": {
+            "nombre": "Industrial Parts Ltda.",
+            "contacto": "María Rojas",
+            "correo": "mrojas@ipartsltda.cl",
+            "telefono": "522349871"
+        }
+    },
+    {
+        "model": "inventario.proveedor",
+        "pk": 3,
+        "fields": {
+            "nombre": "Tecnomin Repuestos",
+            "contacto": "Jorge Pérez",
+            "correo": "jperez@tecnomin.cl",
+            "telefono": "522341122"
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 1,
+        "fields": {
+            "nombre": "Filtro de aire Komatsu",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 625",
+            "numero_serie": "S001X7155",
+            "ubicacion": "Zona Norte",
+            "categoria": "Control",
+            "proveedor": 3,
+            "fecha_vencimiento": "2026-09-27",
+            "stock_actual": 38,
+            "stock_minimo": 7
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 2,
+        "fields": {
+            "nombre": "Bomba hidráulica CAT",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 875",
+            "numero_serie": "S002X4738",
+            "ubicacion": "Contenedor 3",
+            "categoria": "Neumática",
+            "proveedor": 2,
+            "fecha_vencimiento": "2027-05-05",
+            "stock_actual": 14,
+            "stock_minimo": 8
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 3,
+        "fields": {
+            "nombre": "Rodamiento SKF 30205",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 716",
+            "numero_serie": "S003X8447",
+            "ubicacion": "Almacén Exterior",
+            "categoria": "Hidráulica",
+            "proveedor": 3,
+            "fecha_vencimiento": "2027-05-03",
+            "stock_actual": 18,
+            "stock_minimo": 10
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 4,
+        "fields": {
+            "nombre": "Cilindro hidráulico Liebherr",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 211",
+            "numero_serie": "S004X8872",
+            "ubicacion": "Zona Norte",
+            "categoria": "Neumática",
+            "proveedor": 1,
+            "fecha_vencimiento": "2026-02-08",
+            "stock_actual": 14,
+            "stock_minimo": 5
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 5,
+        "fields": {
+            "nombre": "Valvula de presión Parker",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 656",
+            "numero_serie": "S005X9029",
+            "ubicacion": "Contenedor 3",
+            "categoria": "Control",
+            "proveedor": 1,
+            "fecha_vencimiento": "2027-03-30",
+            "stock_actual": 12,
+            "stock_minimo": 8
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 6,
+        "fields": {
+            "nombre": "Motor eléctrico Siemens 15KW",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 467",
+            "numero_serie": "S006X6772",
+            "ubicacion": "Depósito Taller",
+            "categoria": "Control",
+            "proveedor": 1,
+            "fecha_vencimiento": "2026-08-16",
+            "stock_actual": 38,
+            "stock_minimo": 7
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 7,
+        "fields": {
+            "nombre": "Panel de control Hitachi",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 999",
+            "numero_serie": "S007X1823",
+            "ubicacion": "Contenedor 3",
+            "categoria": "Control",
+            "proveedor": 2,
+            "fecha_vencimiento": "2026-07-14",
+            "stock_actual": 48,
+            "stock_minimo": 4
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 8,
+        "fields": {
+            "nombre": "Sensor de temperatura Honeywell",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 924",
+            "numero_serie": "S008X4624",
+            "ubicacion": "Depósito Taller",
+            "categoria": "Eléctrica",
+            "proveedor": 1,
+            "fecha_vencimiento": "2027-04-15",
+            "stock_actual": 24,
+            "stock_minimo": 3
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 9,
+        "fields": {
+            "nombre": "Disco de freno Caterpillar",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 999",
+            "numero_serie": "S009X9783",
+            "ubicacion": "Bodega Central",
+            "categoria": "Neumática",
+            "proveedor": 1,
+            "fecha_vencimiento": "2026-10-30",
+            "stock_actual": 9,
+            "stock_minimo": 4
+        }
+    },
+    {
+        "model": "inventario.producto",
+        "pk": 10,
+        "fields": {
+            "nombre": "Tornillo de alta resistencia M24",
+            "descripcion": "Componente utilizado en sistemas industriales. Modelo serie 631",
+            "numero_serie": "S010X1557",
+            "ubicacion": "Contenedor 3",
+            "categoria": "Control",
+            "proveedor": 3,
+            "fecha_vencimiento": "2026-04-01",
+            "stock_actual": 37,
+            "stock_minimo": 7
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 1,
+        "fields": {
+            "producto": 1,
+            "precio_unitario": 664951.63,
+            "fecha": "2024-01-01"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 2,
+        "fields": {
+            "producto": 2,
+            "precio_unitario": 371220.39,
+            "fecha": "2024-01-02"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 3,
+        "fields": {
+            "producto": 3,
+            "precio_unitario": 263641.49,
+            "fecha": "2024-01-03"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 4,
+        "fields": {
+            "producto": 4,
+            "precio_unitario": 519537.05,
+            "fecha": "2024-01-04"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 5,
+        "fields": {
+            "producto": 5,
+            "precio_unitario": 635431.77,
+            "fecha": "2024-01-05"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 6,
+        "fields": {
+            "producto": 6,
+            "precio_unitario": 941874.75,
+            "fecha": "2024-01-06"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 7,
+        "fields": {
+            "producto": 7,
+            "precio_unitario": 681762.25,
+            "fecha": "2024-01-07"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 8,
+        "fields": {
+            "producto": 8,
+            "precio_unitario": 885883.42,
+            "fecha": "2024-01-08"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 9,
+        "fields": {
+            "producto": 9,
+            "precio_unitario": 645952.11,
+            "fecha": "2024-01-09"
+        }
+    },
+    {
+        "model": "inventario.historialprecio",
+        "pk": 10,
+        "fields": {
+            "producto": 10,
+            "precio_unitario": 923280.87,
+            "fecha": "2024-01-10"
+        }
+    },
+    {
+        "model": "inventario.proyecto",
+        "pk": 1,
+        "fields": {
+            "nombre": "Reacondicionamiento Camión 930E",
+            "descripcion": "Reacondicionamiento estructural y cambio de piezas del Camión 930E",
+            "fecha_inicio": "2025-03-01",
+            "fecha_fin_estimada": "2025-05-30"
+        }
+    },
+    {
+        "model": "inventario.proyecto",
+        "pk": 2,
+        "fields": {
+            "nombre": "Mantenimiento Planta SX",
+            "descripcion": "Intervención semestral programada en sistema de extracción por solventes",
+            "fecha_inicio": "2025-02-15",
+            "fecha_fin_estimada": "2025-05-16"
+        }
+    },
+    {
+        "model": "inventario.proyecto",
+        "pk": 3,
+        "fields": {
+            "nombre": "Ampliación Taller Norte",
+            "descripcion": "Construcción de nueva ala para ensamble de componentes hidráulicos",
+            "fecha_inicio": "2025-01-20",
+            "fecha_fin_estimada": "2025-04-20"
+        }
+    }
+]

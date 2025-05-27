@@ -1,0 +1,552 @@
+[
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 1,
+        "fields": {
+            "proyecto": 1,
+            "producto": 2,
+            "cantidad_asignada": 11,
+            "fecha_asignacion": "2025-05-10T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 2,
+        "fields": {
+            "proyecto": 3,
+            "producto": 10,
+            "cantidad_asignada": 24,
+            "fecha_asignacion": "2025-05-14T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 3,
+        "fields": {
+            "proyecto": 3,
+            "producto": 4,
+            "cantidad_asignada": 6,
+            "fecha_asignacion": "2025-02-14T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 4,
+        "fields": {
+            "proyecto": 1,
+            "producto": 7,
+            "cantidad_asignada": 22,
+            "fecha_asignacion": "2025-04-18T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 5,
+        "fields": {
+            "proyecto": 3,
+            "producto": 7,
+            "cantidad_asignada": 18,
+            "fecha_asignacion": "2025-05-30T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 6,
+        "fields": {
+            "proyecto": 1,
+            "producto": 7,
+            "cantidad_asignada": 13,
+            "fecha_asignacion": "2025-04-26T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 7,
+        "fields": {
+            "proyecto": 3,
+            "producto": 9,
+            "cantidad_asignada": 9,
+            "fecha_asignacion": "2025-03-12T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 8,
+        "fields": {
+            "proyecto": 3,
+            "producto": 2,
+            "cantidad_asignada": 7,
+            "fecha_asignacion": "2025-04-02T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 9,
+        "fields": {
+            "proyecto": 1,
+            "producto": 9,
+            "cantidad_asignada": 28,
+            "fecha_asignacion": "2025-01-08T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.asignacionmaterialproyecto",
+        "pk": 10,
+        "fields": {
+            "proyecto": 2,
+            "producto": 7,
+            "cantidad_asignada": 17,
+            "fecha_asignacion": "2025-05-21T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 1,
+        "fields": {
+            "producto": 1,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-02-25T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 2,
+        "fields": {
+            "producto": 2,
+            "bloqueado": true,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-04-03T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 3,
+        "fields": {
+            "producto": 3,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-02-14T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 4,
+        "fields": {
+            "producto": 4,
+            "bloqueado": true,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 3,
+            "fecha_inicio": "2025-05-01T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 5,
+        "fields": {
+            "producto": 5,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 3,
+            "fecha_inicio": "2025-04-08T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 6,
+        "fields": {
+            "producto": 6,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 2,
+            "fecha_inicio": "2025-02-14T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 7,
+        "fields": {
+            "producto": 7,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 3,
+            "fecha_inicio": "2025-03-15T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 8,
+        "fields": {
+            "producto": 8,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-03-25T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 9,
+        "fields": {
+            "producto": 9,
+            "bloqueado": true,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-04-26T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.auditoriainventario",
+        "pk": 10,
+        "fields": {
+            "producto": 10,
+            "bloqueado": false,
+            "motivo": "Revisión periódica de inventario",
+            "usuario_auditor": 1,
+            "fecha_inicio": "2025-03-06T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 1,
+        "fields": {
+            "producto": 1,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-26T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 2,
+        "fields": {
+            "producto": 2,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-30T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 3,
+        "fields": {
+            "producto": 3,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-19T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 4,
+        "fields": {
+            "producto": 4,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": false,
+            "fecha_alerta": "2025-04-25T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 5,
+        "fields": {
+            "producto": 5,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": false,
+            "fecha_alerta": "2025-04-01T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 6,
+        "fields": {
+            "producto": 6,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-05T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 7,
+        "fields": {
+            "producto": 7,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": false,
+            "fecha_alerta": "2025-04-02T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 8,
+        "fields": {
+            "producto": 8,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": false,
+            "fecha_alerta": "2025-04-05T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 9,
+        "fields": {
+            "producto": 9,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-13T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.alertastock",
+        "pk": 10,
+        "fields": {
+            "producto": 10,
+            "mensaje": "Stock bajo el mínimo requerido",
+            "atendido": true,
+            "fecha_alerta": "2025-04-15T00:00:00"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 1,
+        "fields": {
+            "producto": 4,
+            "tipo": "salida",
+            "cantidad": 13,
+            "fecha": "2025-03-10T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 2,
+        "fields": {
+            "producto": 2,
+            "tipo": "devolucion",
+            "cantidad": 7,
+            "fecha": "2025-04-14T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 3,
+        "fields": {
+            "producto": 4,
+            "tipo": "ajuste",
+            "cantidad": 5,
+            "fecha": "2025-03-02T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 4,
+        "fields": {
+            "producto": 1,
+            "tipo": "entrada",
+            "cantidad": 13,
+            "fecha": "2025-04-30T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 5,
+        "fields": {
+            "producto": 2,
+            "tipo": "entrada",
+            "cantidad": 14,
+            "fecha": "2025-04-30T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 6,
+        "fields": {
+            "producto": 7,
+            "tipo": "devolucion",
+            "cantidad": 17,
+            "fecha": "2025-04-09T00:00:00",
+            "usuario": 1,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 7,
+        "fields": {
+            "producto": 2,
+            "tipo": "ajuste",
+            "cantidad": 20,
+            "fecha": "2025-04-21T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 8,
+        "fields": {
+            "producto": 6,
+            "tipo": "ajuste",
+            "cantidad": 12,
+            "fecha": "2025-03-28T00:00:00",
+            "usuario": 1,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 9,
+        "fields": {
+            "producto": 6,
+            "tipo": "ajuste",
+            "cantidad": 1,
+            "fecha": "2025-03-05T00:00:00",
+            "usuario": 1,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 10,
+        "fields": {
+            "producto": 7,
+            "tipo": "devolucion",
+            "cantidad": 7,
+            "fecha": "2025-03-30T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 11,
+        "fields": {
+            "producto": 3,
+            "tipo": "salida",
+            "cantidad": 20,
+            "fecha": "2025-03-21T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 12,
+        "fields": {
+            "producto": 4,
+            "tipo": "devolucion",
+            "cantidad": 8,
+            "fecha": "2025-03-22T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 13,
+        "fields": {
+            "producto": 10,
+            "tipo": "salida",
+            "cantidad": 10,
+            "fecha": "2025-04-17T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 14,
+        "fields": {
+            "producto": 8,
+            "tipo": "entrada",
+            "cantidad": 20,
+            "fecha": "2025-03-15T00:00:00",
+            "usuario": 1,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 15,
+        "fields": {
+            "producto": 9,
+            "tipo": "entrada",
+            "cantidad": 7,
+            "fecha": "2025-04-05T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 16,
+        "fields": {
+            "producto": 1,
+            "tipo": "entrada",
+            "cantidad": 12,
+            "fecha": "2025-04-12T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 17,
+        "fields": {
+            "producto": 8,
+            "tipo": "ajuste",
+            "cantidad": 3,
+            "fecha": "2025-03-26T00:00:00",
+            "usuario": 2,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 18,
+        "fields": {
+            "producto": 10,
+            "tipo": "ajuste",
+            "cantidad": 16,
+            "fecha": "2025-04-07T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 19,
+        "fields": {
+            "producto": 3,
+            "tipo": "ajuste",
+            "cantidad": 20,
+            "fecha": "2025-03-29T00:00:00",
+            "usuario": 1,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    },
+    {
+        "model": "inventario.movimientoinventario",
+        "pk": 20,
+        "fields": {
+            "producto": 6,
+            "tipo": "devolucion",
+            "cantidad": 9,
+            "fecha": "2025-03-07T00:00:00",
+            "usuario": 3,
+            "observaciones": "Movimiento automático de prueba"
+        }
+    }
+]

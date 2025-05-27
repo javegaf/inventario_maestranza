@@ -1,0 +1,13 @@
+{# /templates/precios/historial_precios.html #}
+{% extends 'base.html' %}
+{% block title %}Historial de Precios{% endblock %}
+{% block content %}
+<h2>Historial de precios por producto</h2>
+<ul class="list-group">
+    {% for precio in historial %}
+    <li class="list-group-item">
+        {{ precio.producto }} - ${{ precio.precio_unitario }} ({{ precio.fecha|date:"d/m/Y" }})
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
