@@ -1,0 +1,46 @@
+{# templates/productos/lista_productos.html #}
+{% extends 'base.html' %}
+{% block title %}Lista de Productos{% endblock %}
+{% block content %}
+<h2>Productos registrados</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Nº de Serie</th>
+            <th>Ubicación</th>
+            <th>Stock</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for producto in productos %}
+        <tr>
+            <td>{{ producto.nombre }}</td>
+            <td>{{ producto.numero_serie }}</td>
+            <td>{{ producto.ubicacion }}</td>
+            <td>{{ producto.stock_actual }}</td>
+            <td>
+                <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-primary">Editar</a>
+                <a href="{% url 'eliminar_producto' producto.id %}" class="btn btn-sm btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+{% endblock %}
+
+{# templates/productos/formulario_producto.html #}
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Formulario de Producto{% endblock %}
+{% block content %}
+<h2>{% if form.instance.pk %}Editar{% else %}Agregar{% endif %} Producto</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'listar_productos' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

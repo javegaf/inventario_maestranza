@@ -1,0 +1,13 @@
+{# /templates/kits/lista_kits.html #}
+{% extends 'base.html' %}
+{% block title %}Kits de Productos{% endblock %}
+{% block content %}
+<h2>Kits disponibles</h2>
+<ul class="list-group">
+    {% for kit in kits %}
+    <li class="list-group-item">
+        {{ kit.nombre }} - Contiene: {{ kit.productos.all|join:", " }}
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
