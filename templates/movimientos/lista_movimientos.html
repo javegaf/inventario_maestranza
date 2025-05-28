@@ -1,0 +1,28 @@
+{# /templates/movimientos/lista_movimientos.html #}
+{% extends 'base.html' %}
+{% block title %}Historial de movimientos{% endblock %}
+{% block content %}
+<h2>Historial de movimientos</h2>
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Tipo</th>
+            <th>Cantidad</th>
+            <th>Fecha</th>
+            <th>Usuario</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for movimiento in movimientos %}
+        <tr>
+            <td>{{ movimiento.producto }}</td>
+            <td>{{ movimiento.get_tipo_display }}</td>
+            <td>{{ movimiento.cantidad }}</td>
+            <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
+            <td>{{ movimiento.usuario }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,29 @@
+{# templates/productos/lista_productos.html #}
+{% extends 'base.html' %}
+{% block title %}Listado de Productos{% endblock %}
+{% block content %}
+<h2>Listado de Productos</h2>
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>N° Serie</th>
+            <th>Ubicación</th>
+            <th>Categoría</th>
+            <th>Stock Actual</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for producto in productos %}
+        <tr>
+            <td>{{ producto.nombre }}</td>
+            <td>{{ producto.numero_serie }}</td>
+            <td>{{ producto.ubicacion }}</td>
+            <td>{{ producto.categoria }}</td>
+            <td>{{ producto.stock_actual }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+{% endblock %}

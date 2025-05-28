@@ -17,3 +17,7 @@ db.sqlite3
 
 # Archivos estáticos generados (opcional si se usan collectstatic)
 staticfiles/
+
+# Archivos de cache de Django en las migraciones
+*/migrations/__pycache__/
+*.pyc

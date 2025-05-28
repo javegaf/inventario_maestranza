@@ -1,3 +1,4 @@
+
 # 🛠️ Sistema de Control de Inventarios - Maestranzas Unidos S.A.
 
 Este proyecto corresponde al desarrollo de un sistema web de control de inventarios para la empresa **Maestranzas Unidos S.A.**, desarrollado en el marco del módulo **Gestión Ágil de Proyectos**. Está construido con Django y sigue buenas prácticas de modularidad, uso de variables de entorno, despliegue y versionado.
@@ -21,7 +22,7 @@ Este proyecto corresponde al desarrollo de un sistema web de control de inventar
 - **Django 5.2**
 - **SQLite (para desarrollo)**
 - **Bootstrap 5 + crispy-forms**
-- **python-dotenv** (manejo de secretos)
+- **python-dotenv**
 - **Git + GitHub**
 
 ---
@@ -31,80 +32,138 @@ Este proyecto corresponde al desarrollo de un sistema web de control de inventar
 ```
 inventario_maestranza/
 ├── inventario_maestranza/     # Configuración principal del proyecto
-├── inventario/                # App principal para productos, stock, movimientos
-├── usuarios/                  # App para autenticación personalizada
+├── inventario/                # App principal: productos, stock, movimientos
+├── usuarios/                  # App para autenticación y roles
 ├── static/                    # Archivos estáticos
 ├── templates/                 # Plantillas globales
-├── media/                     # Archivos cargados por usuarios
-├── .env                       # Variables secretas (no se sube a Git)
+├── media/                     # Archivos subidos por usuarios
+├── carga_datos/               # Archivos JSON para poblar la base de datos
+├── db.sqlite3                 # Base de datos (solo para desarrollo)
+├── .env                       # Variables secretas
 ├── manage.py
-├── requirements.txt           # Dependencias del proyecto
-└── README.md                  # Instrucciones y aclaraciones del proyecto
+└── requirements.txt
 ```
 
 ---
 
-## 🛠️ Instrucciones de instalación y ejecución local
+## 🛠️ Instalación y ejecución local
 
-### 🔁 Clonar el repositorio
+### 1️⃣ Clonar el repositorio
 
 ```bash
 git clone https://github.com/javegaf/inventario_maestranza.git
 cd inventario_maestranza
 ```
 
-### 🐍 Crear entorno virtual
+### 2️⃣ Crear y activar entorno virtual
 
 ```bash
 python -m venv env
-# Activar entorno
-env\Scripts\activate      # En Windows
-source env/bin/activate   # En macOS/Linux
+env\Scripts\activate   # Windows
+# o en Linux/macOS:
+# source env/bin/activate
 ```
 
-### 📦 Instalar dependencias
+### 3️⃣ Instalar dependencias
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 🔐 Crear archivo `.env`
+### 4️⃣ Crear archivo `.env` con clave secreta
 
-En la raíz del proyecto:
-
-```
-SECRET_KEY= clave_secreta_entregada_por_el_admin
+```env
+SECRET_KEY=clave_super_secreta
 DEBUG=True
 ```
 
-### 🧱 Ejecutar migraciones
+---
+
+## ⚙️ Inicializar base de datos
+
+> Solo si es la primera vez:
 
 ```bash
-python manage.py migrate
-python manage.py createsuperuser  # (opcional)
+rm db.sqlite3
+rmdir /s /q inventario\migrations
+rmdir /s /q usuarios\migrations
 ```
 
-### ▶️ Iniciar el servidor
+Crear migraciones y aplicarlas:
+
+```bash
+python manage.py makemigrations usuarios inventario
+python manage.py migrate
+```
+
+Crear superusuario para manejar datos:
+
+```bash
+python manage.py createsuperuser
+```
+
+---
+
+## ▶️ Ejecutar el servidor
 
 ```bash
 python manage.py runserver
 ```
 
-Abre en navegador: http://127.0.0.1:8000
+Ir a: http://127.0.0.1:8000  
+Admin: http://127.0.0.1:8000/admin
 
 ---
 
-## 📌 Notas adicionales
+## 📦 Cargar datos con archivos JSON
 
-- Si una carpeta está vacía pero quieres mantenerla en Git, agrega un archivo `.gitkeep`.
-- Usa `.env` para mantener fuera del repositorio tu clave secreta, base de datos y configuraciones sensibles.
-- El archivo `.gitignore` ya está preparado para ignorar entorno virtual, base de datos, archivos temporales y secretos.
+```bash
+python manage.py loaddata carga_datos/datos_usuarios.json
+python manage.py loaddata carga_datos/datos_maestranza.json
+python manage.py loaddata carga_datos/datos_complementarios_maestranza.json
+```
+
+> Esto insertará usuarios, productos, proveedores, movimientos, auditorías, alertas y más.
 
 ---
 
-## 🤝 Créditos
+## 🧪 Verificar e ingresar datos al sistema
 
-Proyecto desarrollado por estudiantes de Ingeniería en Informática  
+### ✔️ Panel de Administración
+
+1. Inicia el servidor
+2. Visita: http://127.0.0.1:8000/admin
+3. Usa:
+   - Usuario: `super_usuario_creado`
+   - Contraseña: `contraseña_que_creaste`
+
+Puedes gestionar productos, kits, auditorías, stock, proyectos, etc.
+
+---
+
+## 👤 Roles disponibles
+
+- `administrador`
+- `gestor`
+- `auditor`
+- `logistica`
+- `comprador`
+- `produccion`
+
+---
+
+## 🤝 Cómo contribuir
+
+1. Forkea el repositorio
+2. Crea una rama: `git checkout -b nueva-funcionalidad`
+3. Haz tus cambios y commitea
+4. Abre un Pull Request
+
+---
+
+## 🧾 Créditos
+
+Proyecto académico - Ingeniería en Informática  
 **Asignatura:** Gestión Ágil de Proyectos  
 **Institución:** Duoc UC  
 **Año:** 2025
