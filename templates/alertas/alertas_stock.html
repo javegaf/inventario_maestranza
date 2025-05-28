@@ -1,0 +1,15 @@
+{# /templates/alertas/alertas_stock.html #}
+{% extends 'base.html' %}
+{% block title %}Alertas de Stock{% endblock %}
+{% block content %}
+<h2>Productos con stock bajo</h2>
+<ul class="list-group">
+    {% for producto in productos_bajo_stock %}
+    <li class="list-group-item list-group-item-danger">
+        {{ producto.nombre }} (Stock actual: {{ producto.stock_actual }})
+    </li>
+    {% empty %}
+    <li class="list-group-item">Todos los productos están en niveles normales.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

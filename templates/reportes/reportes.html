@@ -1,0 +1,15 @@
+{# /templates/reportes/reportes.html #}
+{% extends 'base.html' %}
+{% block title %}Reportes de Inventario{% endblock %}
+{% block content %}
+<h2>Reportes disponibles</h2>
+<ul class="list-group">
+    {% for reporte in reportes %}
+    <li class="list-group-item">
+        <a href="{{ reporte.archivo_pdf.url }}" target="_blank">{{ reporte.nombre }}</a> - {{ reporte.fecha_generacion|date:"d/m/Y" }}
+    </li>
+    {% empty %}
+    <li class="list-group-item">No hay reportes generados.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

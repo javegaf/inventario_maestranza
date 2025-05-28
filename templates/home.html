@@ -1,0 +1,20 @@
+{# /templates/home.html #}
+{% extends 'base.html' %}
+{% block title %}Inicio - Inventario{% endblock %}
+{% block content %}
+<div class="text-center">
+    <h1 class="mb-4">Bienvenido al Sistema de Control de Inventarios</h1>
+    <p class="lead">Accede rápidamente a las secciones principales:</p>
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-4">
+            <a href="{% url 'listar_productos' %}" class="btn btn-outline-primary btn-lg w-100 mb-3">Productos</a>
+            <a href="{% url 'lista_movimientos' %}" class="btn btn-outline-success btn-lg w-100 mb-3">Movimientos</a>
+            <a href="{% url 'alertas_stock' %}" class="btn btn-outline-danger btn-lg w-100 mb-3">Alertas</a>
+            <a href="{% url 'lista_proveedores' %}" class="btn btn-outline-secondary btn-lg w-100 mb-3">Proveedores</a>
+            <a href="{% url 'lista_kits' %}" class="btn btn-outline-info btn-lg w-100 mb-3">Kits</a>
+            <a href="{% url 'reportes' %}" class="btn btn-outline-dark btn-lg w-100 mb-3">Reportes</a>
+            <a href="{% url 'historial_precios' %}" class="btn btn-outline-warning btn-lg w-100 mb-3">Historial de Precios</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

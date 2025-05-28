@@ -1,0 +1,24 @@
+{# /templates/proveedores/lista_proveedores.html #}
+{% extends 'base.html' %}
+{% block title %}Lista de Proveedores{% endblock %}
+{% block content %}
+<h2>Proveedores</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Correo</th>
+            <th>Teléfono</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for proveedor in proveedores %}
+        <tr>
+            <td>{{ proveedor.nombre }}</td>
+            <td>{{ proveedor.correo }}</td>
+            <td>{{ proveedor.telefono }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

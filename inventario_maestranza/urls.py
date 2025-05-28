@@ -1,22 +1,15 @@
 """
-URL configuration for inventario_maestranza project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Definiciones de rutas principales del proyecto Django.
+Este archivo conecta las rutas globales del proyecto con las apps internas:
+- 'usuarios': manejo de autenticación, perfil y página de inicio.
+- 'inventario': gestión de productos, movimientos, proveedores, reportes, etc.
 """
+
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('usuarios.urls')),        # Home y perfil
+    path('', include('inventario.urls')),      # Productos, movimientos, etc.
 ]
