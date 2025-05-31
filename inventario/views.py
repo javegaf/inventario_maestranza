@@ -7,6 +7,9 @@ from django.shortcuts import render, redirect
 from django.db import models
 from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio, AlertaStock
 from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
+from django.db.models import Q
+from .forms import MovimientoFiltroForm
+import datetime
 
 # Productos
 
@@ -26,9 +29,36 @@ def crear_producto(request):
 # Movimientos
 
 def lista_movimientos(request):
-    """Muestra el historial de movimientos de inventario."""
-    movimientos = MovimientoInventario.objects.all() #Falsos positivos dejar de lado
-    return render(request, 'movimientos/lista_movimientos.html', {'movimientos': movimientos})
+    """Muestra el historial de movimientos de inventario con capacidad de filtrado."""
+    # Start with all movements
+    movimientos = MovimientoInventario.objects.all().order_by('-fecha')
+    
+    # Initialize the filter form
+    form = MovimientoFiltroForm(request.GET or None)
+    
+    # Apply filters if form is valid
+    if form.is_valid():
+        # Filter by date range
+        if form.cleaned_data.get('fecha_inicio'):
+            fecha_inicio = form.cleaned_data['fecha_inicio']
+            movimientos = movimientos.filter(fecha__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
+        
+        if form.cleaned_data.get('fecha_fin'):
+            fecha_fin = form.cleaned_data['fecha_fin']
+            movimientos = movimientos.filter(fecha__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
+        
+        # Filter by movement type
+        if form.cleaned_data.get('tipo_movimiento'):
+            movimientos = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
+        
+        # Filter by product
+        if form.cleaned_data.get('producto'):
+            movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
+    
+    return render(request, 'movimientos/lista_movimientos.html', {
+        'movimientos': movimientos,
+        'filtro_form': form
+    })
 
 def crear_movimiento(request):
     """Formulario para registrar un nuevo movimiento de inventario."""
