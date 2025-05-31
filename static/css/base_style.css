@@ -1,0 +1,30 @@
+
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .navbar {
+            background-color: #1e1e1e !important;
+        }
+        .card, .table, .form-control, .form-select {
+            background-color: #242424;
+            color: #e0e0e0;
+            border-color: #444;
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-secondary {
+            background-color: #5a6268;
+            border-color: #5a6268;
+        }
+        a {
+            color: #8ab4f8;
+        }
+        a:hover {
+            color: #aecbfa;
+        }
+        .text-muted {
+            color: #adb5bd !important;
+        }
