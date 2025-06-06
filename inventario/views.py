@@ -4,9 +4,11 @@ movimientos, proveedores, kits, alertas, reportes y precios.
 """
 
 from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
 from django.db import models
-from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio
+from .models import AlertaStock, Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio
 from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
+from django.db.models import F, Count
 
 # Productos
 
@@ -89,3 +91,48 @@ def historial_precios(request):
     """Muestra el historial de precios por producto."""
     historial = HistorialPrecio.objects.all() #Falsos positivos dejar de lado
     return render(request, 'precios/historial_precios.html', {'historial': historial})
+
+@login_required
+def dashboard_inventario(request):
+    total_productos = Producto.objects.count()
+    productos_sin_stock = Producto.objects.filter(stock_actual=0).count()
+    productos_bajo_minimo = Producto.objects.filter(stock_actual__lt=F('stock_minimo')).count()
+    movimientos = (
+        MovimientoInventario.objects.values('tipo')
+        .annotate(total=Count('id'))
+        .order_by('tipo')
+    )
+
+    tipos = [m['tipo'].capitalize() for m in movimientos]
+    cantidades = [m['total'] for m in movimientos]
+    colores_contexto = {
+        'Entrada': 'rgba(75, 192, 192, 0.6)',     # Verde azulado
+        'Salida': 'rgba(255, 99, 132, 0.6)',      # Rojo
+        'Ajuste': 'rgba(255, 206, 86, 0.6)',      # Amarillo
+        'Devolucion': 'rgba(54, 162, 235, 0.6)',  # Azul
+    }
+
+    colores_barras = [colores_contexto.get(tipo.capitalize(), 'rgba(153, 102, 255, 0.6)') for tipo in tipos]
+
+    alertas_stock = AlertaStock.objects.filter(atendido=False).select_related('producto').order_by('-fecha_alerta')
+
+    proveedores = (
+        Producto.objects.values('proveedor__nombre')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    nombres_proveedores = [p['proveedor__nombre'] or 'Sin proveedor' for p in proveedores]
+    cantidades_proveedor = [p['total'] for p in proveedores]
+    context = {
+        'total_productos': total_productos,
+        'productos_sin_stock': productos_sin_stock,
+        'productos_bajo_minimo': productos_bajo_minimo,
+        'tipos_movimiento': tipos,
+        'cantidades_movimiento': cantidades,
+        'colores_barras': colores_barras,
+        'alertas_stock': alertas_stock,
+        'nombres_proveedores': nombres_proveedores,
+        'cantidades_proveedor': cantidades_proveedor,
+    }
+    return render(request, 'inventario/dashboard.html', context)
