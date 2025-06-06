@@ -1,74 +1,83 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Reportes de Inventario{% endblock %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+{% endblock %}
+
 {% block content %}
+<div class="container my-5">
+  <h2 class="mb-4 text-primary fw-bold">📊 Panel de Reportes de Inventario</h2>
 
-<!-- 📄 Reportes PDF existentes -->
-<h2>Reportes disponibles</h2>
-<ul class="list-group mb-4">
-    {% for reporte in reportes %}
-    <li class="list-group-item">
-        <a href="{{ reporte.archivo_pdf.url }}" target="_blank">{{ reporte.nombre }}</a> - {{ reporte.fecha_generacion|date:"d/m/Y" }}
-    </li>
-    {% empty %}
-    <li class="list-group-item">No hay reportes generados.</li>
-    {% endfor %}
-</ul>
+  <!-- Tabla de movimientos -->
+  <div class="card shadow-sm mb-5 border-0">
+    <div class="card-header bg-secondary text-white fw-semibold">📋 Tabla de Movimientos</div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="tablaMovimientos" class="display table table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mov in movimientos %}
+            <tr>
+              <td>{{ mov.producto.nombre }}</td>
+              <td>{{ mov.get_tipo_display }}</td>
+              <td>{{ mov.cantidad }}</td>
+              <td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-<!-- 📊 Reporte interactivo -->
-<h2>Informe dinámico de inventario</h2>
+  <!-- Botones de exportación -->
+  <div class="d-flex justify-content-end mb-4">
+    <a href="{% url 'exportar_csv' %}" class="btn btn-outline-primary me-2">
+      📥 Exportar CSV
+    </a>
+    <a href="{% url 'exportar_pdf' %}" class="btn btn-outline-danger">
+      📄 Ver/Exportar PDF
+    </a>
+  </div>
 
-<div class="mb-4">
-    <canvas id="graficoInventario"></canvas>
+  <!-- Reportes generados -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white fw-semibold">📁 Reportes Generados</div>
+    <ul class="list-group list-group-flush">
+      {% for reporte in reportes %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>📎 {{ reporte.nombre }}</span>
+        <span class="badge bg-light text-dark">{{ reporte.fecha_generacion|date:"d/m/Y" }}</span>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">No hay reportes generados.</li>
+      {% endfor %}
+    </ul>
+  </div>
 </div>
+{% endblock %}
 
-<table id="tablaMovimientos" class="table table-bordered">
-    <thead>
-        <tr><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Fecha</th></tr>
-    </thead>
-    <tbody>
-        {% for mov in movimientos %}
-        <tr>
-            <td>{{ mov.producto.nombre }}</td>
-            <td>{{ mov.get_tipo_display }}</td>
-            <td>{{ mov.cantidad }}</td>
-            <td>{{ mov.fecha|date:"d/m/Y" }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<a href="{% url 'exportar_csv' %}" class="btn btn-success mt-3">Exportar CSV</a>
-<a href="{% url 'exportar_pdf' %}" class="btn btn-danger mt-3">Exportar PDF</a>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block extrascripts %}
 <script>
-    const ctx = document.getElementById('graficoInventario');
-    const data = {
-        labels: [{% for mov in movimientos %}"{{ mov.fecha|date:'d/m/Y' }}",{% endfor %}],
-        datasets: [{
-            label: 'Cantidad',
-            data: [{% for mov in movimientos %}{{ mov.cantidad }},{% endfor %}],
-            borderWidth: 1
-        }]
-    };
-    new Chart(ctx, {
-        type: 'bar',
-        data: data,
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
+  $(document).ready(function () {
+    $('#tablaMovimientos').DataTable({
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+      },
+      pageLength: 10,
+      lengthChange: false
     });
+  });
 </script>
-
-<!-- DataTables -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"/>
-<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        new DataTable('#tablaMovimientos');
-    });
-</script>
-
 {% endblock %}

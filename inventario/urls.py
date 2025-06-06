@@ -1,9 +1,3 @@
-"""
-Definiciones de rutas URL para la app de inventario.
-Este archivo incluye las rutas asociadas a productos, movimientos de inventario,
-proveedores, alertas, kits, reportes e historial de precios.
-"""
-
 from django.urls import path
 from . import views
 
@@ -23,5 +17,8 @@ urlpatterns = [
     path('kits/nuevo/', views.crear_kit, name='crear_kit'),
 
     path('reportes/', views.reportes, name='reportes'),
+    path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),
+    path('reportes/exportar/pdf/', views.exportar_pdf, name='exportar_pdf'),
+
     path('precios/', views.historial_precios, name='historial_precios'),
 ]
