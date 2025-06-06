@@ -1,9 +1,10 @@
-{# /templates/reportes/reportes.html #}
 {% extends 'base.html' %}
 {% block title %}Reportes de Inventario{% endblock %}
 {% block content %}
+
+<!-- 📄 Reportes PDF existentes -->
 <h2>Reportes disponibles</h2>
-<ul class="list-group">
+<ul class="list-group mb-4">
     {% for reporte in reportes %}
     <li class="list-group-item">
         <a href="{{ reporte.archivo_pdf.url }}" target="_blank">{{ reporte.nombre }}</a> - {{ reporte.fecha_generacion|date:"d/m/Y" }}
@@ -12,4 +13,62 @@
     <li class="list-group-item">No hay reportes generados.</li>
     {% endfor %}
 </ul>
+
+<!-- 📊 Reporte interactivo -->
+<h2>Informe dinámico de inventario</h2>
+
+<div class="mb-4">
+    <canvas id="graficoInventario"></canvas>
+</div>
+
+<table id="tablaMovimientos" class="table table-bordered">
+    <thead>
+        <tr><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Fecha</th></tr>
+    </thead>
+    <tbody>
+        {% for mov in movimientos %}
+        <tr>
+            <td>{{ mov.producto.nombre }}</td>
+            <td>{{ mov.get_tipo_display }}</td>
+            <td>{{ mov.cantidad }}</td>
+            <td>{{ mov.fecha|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'exportar_csv' %}" class="btn btn-success mt-3">Exportar CSV</a>
+<a href="{% url 'exportar_pdf' %}" class="btn btn-danger mt-3">Exportar PDF</a>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('graficoInventario');
+    const data = {
+        labels: [{% for mov in movimientos %}"{{ mov.fecha|date:'d/m/Y' }}",{% endfor %}],
+        datasets: [{
+            label: 'Cantidad',
+            data: [{% for mov in movimientos %}{{ mov.cantidad }},{% endfor %}],
+            borderWidth: 1
+        }]
+    };
+    new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+</script>
+
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"/>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        new DataTable('#tablaMovimientos');
+    });
+</script>
+
 {% endblock %}

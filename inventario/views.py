@@ -3,13 +3,12 @@ Vistas del módulo inventario: productos,
 movimientos, proveedores, kits, alertas, reportes y precios.
 """
 
+import datetime
 from django.shortcuts import render, redirect
 from django.db import models
 from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio, AlertaStock
 from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
-from django.db.models import Q
 from .forms import MovimientoFiltroForm
-import datetime
 
 # Productos
 
