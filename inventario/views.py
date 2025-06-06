@@ -3,11 +3,12 @@ Vistas del módulo inventario: productos,
 movimientos, proveedores, kits, alertas, reportes y precios.
 """
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db import models
 from .models import AlertaStock, Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio
-from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
+from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm, ProductoEditableForm
 from django.db.models import F, Count
 
 # Productos
@@ -136,3 +137,32 @@ def dashboard_inventario(request):
         'cantidades_proveedor': cantidades_proveedor,
     }
     return render(request, 'inventario/dashboard.html', context)
+
+def editar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, pk=producto_id)
+    fecha_actual = producto.fecha_vencimiento 
+    if request.method == 'POST':
+        form = ProductoEditableForm(request.POST, instance=producto)
+        if form.is_valid():
+            producto_editado = form.save(commit=False)
+            
+            if not form.cleaned_data.get('fecha_vencimiento'):
+                producto_editado.fecha_vencimiento = fecha_actual
+            
+            producto_editado.save()
+            
+            messages.success(request, "Producto actualizado correctamente.")
+            return redirect('listar_productos')
+    else:
+        form = ProductoEditableForm(instance=producto)
+
+    context = {
+        'form': form
+    }
+    return render(request, 'productos/form_producto.html', context)
+
+def eliminar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    producto.delete()
+    messages.success(request, 'Producto eliminado correctamente.')
+    return redirect('listar_productos')

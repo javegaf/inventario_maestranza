@@ -1,29 +1,100 @@
-{# templates/productos/lista_productos.html #}
 {% extends 'base.html' %}
 {% block title %}Listado de Productos{% endblock %}
+
 {% block content %}
-<h2>Listado de Productos</h2>
-<table class="table table-bordered table-striped">
-    <thead>
+<div class="container mt-4">
+  <h2>Listado de Productos</h2>
+
+  <input type="text" id="buscar" class="form-control mb-3" placeholder="Buscar producto...">
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped" id="tabla-productos">
+      <thead class="table-light">
         <tr>
-            <th>Nombre</th>
-            <th>N° Serie</th>
-            <th>Ubicación</th>
-            <th>Categoría</th>
-            <th>Stock Actual</th>
+          <th>Nombre</th>
+          <th>N° Serie</th>
+          <th>Ubicación</th>
+          <th>Categoría</th>
+          <th>Stock Actual</th>
+          <th>Estado</th>
+          <th>Acciones</th>
         </tr>
-    </thead>
-    <tbody>
+      </thead>
+      <tbody>
         {% for producto in productos %}
         <tr>
-            <td>{{ producto.nombre }}</td>
-            <td>{{ producto.numero_serie }}</td>
-            <td>{{ producto.ubicacion }}</td>
-            <td>{{ producto.categoria }}</td>
-            <td>{{ producto.stock_actual }}</td>
+          <td>{{ producto.nombre }}</td>
+          <td>{{ producto.numero_serie }}</td>
+          <td>{{ producto.ubicacion }}</td>
+          <td>{{ producto.categoria }}</td>
+          <td>{{ producto.stock_actual }}</td>
+          <td>
+            {% if producto.stock_actual == 0 %}
+              <span class="badge bg-danger"><i class="bi bi-x-circle-fill"></i> Sin stock</span>
+            {% elif producto.stock_actual < producto.stock_minimo %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Bajo</span>
+            {% else %}
+              <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Suficiente</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-primary">Editar</a>
+            <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal"   data-bs-target="#modalConfirmarEliminar"   data-id="{{ producto.id }}"   data-nombre="{{ producto.nombre }}">  Eliminar</a>
+          </td>
         </tr>
         {% endfor %}
-    </tbody>
-</table>
-<a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+      </tbody>
+    </table>
+    <!-- Modal de Confirmación de Eliminación -->
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="modalEliminarLabel">Confirmar Eliminación</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          ¿Estás seguro de que deseas eliminar el producto <strong id="productoAEliminar"></strong>?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <a href="#" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  </div>
+
+  <a href="{% url 'crear_producto' %}" class="btn btn-success mt-3">
+    <i class="bi bi-plus-circle-fill"></i> Agregar nuevo producto
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("buscar").addEventListener("keyup", function () {
+    const filtro = this.value.toLowerCase();
+    document.querySelectorAll("#tabla-productos tbody tr").forEach(function (fila) {
+      const texto = fila.textContent.toLowerCase();
+      fila.style.display = texto.includes(filtro) ? "" : "none";
+    });
+  });
+</script>
+<script>
+    const modalEliminar = document.getElementById('modalConfirmarEliminar');
+    modalEliminar.addEventListener('show.bs.modal', function (event) {
+      const boton = event.relatedTarget;
+      const productoId = boton.getAttribute('data-id');
+      const productoNombre = boton.getAttribute('data-nombre');
+  
+      const modalBody = modalEliminar.querySelector('#productoAEliminar');
+      const confirmarBtn = modalEliminar.querySelector('#btnConfirmarEliminar');
+  
+      modalBody.textContent = productoNombre;
+      confirmarBtn.href = `/productos/eliminar/${productoId}/`;  // Ajusta la URL si usas otro patrón
+    });
+</script>
+  
 {% endblock %}
