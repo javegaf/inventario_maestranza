@@ -7,19 +7,24 @@ import csv
 import datetime
 from io import BytesIO
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db import models
+from django.db.models import F, Count
 from django.http import HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
-from .forms import (
-    KitProductoForm, MovimientoFiltroForm, MovimientoInventarioForm,
-    ProductoForm, ProveedorForm
-)
 from .models import (
-    AlertaStock, HistorialPrecio, InformeInventario,
-    KitProducto, MovimientoInventario, Producto, Proveedor
+    AlertaStock, Producto, MovimientoInventario,
+    Proveedor, KitProducto, HistorialPrecio, InformeInventario
+)
+
+from .forms import (
+    ProductoForm, ProductoEditableForm,
+    MovimientoInventarioForm, MovimientoFiltroForm,
+    ProveedorForm, KitProductoForm
 )
 
 # Productos
@@ -198,3 +203,77 @@ def exportar_pdf(request):
 def historial_precios(request):
     historial = HistorialPrecio.objects.all()
     return render(request, 'precios/historial_precios.html', {'historial': historial})
+
+@login_required
+def dashboard_inventario(request):
+    total_productos = Producto.objects.count()
+    productos_sin_stock = Producto.objects.filter(stock_actual=0).count()
+    productos_bajo_minimo = Producto.objects.filter(stock_actual__lt=F('stock_minimo')).count()
+    movimientos = (
+        MovimientoInventario.objects.values('tipo')
+        .annotate(total=Count('id'))
+        .order_by('tipo')
+    )
+
+    tipos = [m['tipo'].capitalize() for m in movimientos]
+    cantidades = [m['total'] for m in movimientos]
+    colores_contexto = {
+        'Entrada': 'rgba(75, 192, 192, 0.6)',     # Verde azulado
+        'Salida': 'rgba(255, 99, 132, 0.6)',      # Rojo
+        'Ajuste': 'rgba(255, 206, 86, 0.6)',      # Amarillo
+        'Devolucion': 'rgba(54, 162, 235, 0.6)',  # Azul
+    }
+
+    colores_barras = [colores_contexto.get(tipo.capitalize(), 'rgba(153, 102, 255, 0.6)') for tipo in tipos]
+
+    alertas_stock = AlertaStock.objects.filter(atendido=False).select_related('producto').order_by('-fecha_alerta')
+
+    proveedores = (
+        Producto.objects.values('proveedor__nombre')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    nombres_proveedores = [p['proveedor__nombre'] or 'Sin proveedor' for p in proveedores]
+    cantidades_proveedor = [p['total'] for p in proveedores]
+    context = {
+        'total_productos': total_productos,
+        'productos_sin_stock': productos_sin_stock,
+        'productos_bajo_minimo': productos_bajo_minimo,
+        'tipos_movimiento': tipos,
+        'cantidades_movimiento': cantidades,
+        'colores_barras': colores_barras,
+        'alertas_stock': alertas_stock,
+        'nombres_proveedores': nombres_proveedores,
+        'cantidades_proveedor': cantidades_proveedor,
+    }
+    return render(request, 'inventario/dashboard.html', context)
+
+def editar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, pk=producto_id)
+    fecha_actual = producto.fecha_vencimiento 
+    if request.method == 'POST':
+        form = ProductoEditableForm(request.POST, instance=producto)
+        if form.is_valid():
+            producto_editado = form.save(commit=False)
+            
+            if not form.cleaned_data.get('fecha_vencimiento'):
+                producto_editado.fecha_vencimiento = fecha_actual
+            
+            producto_editado.save()
+            
+            messages.success(request, "Producto actualizado correctamente.")
+            return redirect('listar_productos')
+    else:
+        form = ProductoEditableForm(instance=producto)
+
+    context = {
+        'form': form
+    }
+    return render(request, 'productos/form_producto.html', context)
+
+def eliminar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    producto.delete()
+    messages.success(request, 'Producto eliminado correctamente.')
+    return redirect('listar_productos')
