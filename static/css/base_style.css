@@ -1,30 +1,100 @@
+/* MODO OSCURO */
+[data-bs-theme="dark"] body {
+    background-color: #121212;
+    color: #e0e0e0;
+}
 
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-        }
-        .navbar {
-            background-color: #1e1e1e !important;
-        }
-        .card, .table, .form-control, .form-select {
-            background-color: #242424;
-            color: #e0e0e0;
-            border-color: #444;
-        }
-        .btn-primary {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
-        }
-        .btn-secondary {
-            background-color: #5a6268;
-            border-color: #5a6268;
-        }
-        a {
-            color: #8ab4f8;
-        }
-        a:hover {
-            color: #aecbfa;
-        }
-        .text-muted {
-            color: #adb5bd !important;
-        }
+[data-bs-theme="dark"] .navbar {
+    background-color: #1e1e1e !important;
+}
+
+[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .table,
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #242424;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] a {
+    color: #8ab4f8;
+}
+
+[data-bs-theme="dark"] a:hover {
+    color: #aecbfa;
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+}
+
+/* MODO CLARO */
+[data-bs-theme="light"] body {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+[data-bs-theme="light"] .navbar {
+    background-color: #ffffff !important;
+}
+
+[data-bs-theme="light"] .card,
+[data-bs-theme="light"] .table,
+[data-bs-theme="light"] .form-control,
+[data-bs-theme="light"] .form-select {
+    background-color: #ffffff;
+    color: #212529;
+    border-color: #ced4da;
+}
+
+[data-bs-theme="light"] a {
+    color: #0d6efd;
+}
+
+[data-bs-theme="light"] a:hover {
+    color: #0a58ca;
+}
+
+[data-bs-theme="light"] .text-muted {
+    color: #6c757d !important;
+}
+
+/* Íconos oscuros que deben volverse claros en modo dark */
+[data-bs-theme="dark"] .icon-reportes {
+    color: #4dabf7 !important; /* azul claro visible */
+}
+
+[data-bs-theme="dark"] .icon-precios {
+    color: #fdd835 !important; /* amarillo fuerte */
+}
+
+[data-bs-theme="light"] .icon-reportes {
+    color: #0d6efd !important;
+}
+
+[data-bs-theme="light"] .icon-precios {
+    color: #ffc107 !important;
+}
+
+/* Botón de historial de precios (amarillo en oscuro, más oscuro en claro) */
+[data-bs-theme="dark"] .btn-historial {
+    border: 1px solid #fdd835;
+    color: #fdd835;
+}
+
+[data-bs-theme="light"] .btn-historial {
+    border: 1px solid #ffc107;
+    color: #212529;
+}
+
+/* Botón de reportes (azul visible en ambos temas) */
+[data-bs-theme="dark"] .btn-reportes {
+    border: 1px solid #4dabf7;
+    color: #4dabf7;
+}
+
+[data-bs-theme="light"] .btn-reportes {
+    border: 1px solid #0d6efd;
+    color: #0d6efd;
+}
