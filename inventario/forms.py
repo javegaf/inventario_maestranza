@@ -38,3 +38,24 @@ class KitProductoForm(forms.ModelForm):
         """Define el modelo y los campos usados en el formulario de KitProducto."""
         model = KitProducto
         fields = '__all__'
+
+class MovimientoFiltroForm(forms.Form):
+    fecha_inicio = forms.DateField(
+        required=False, 
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    fecha_fin = forms.DateField(
+        required=False, 
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    tipo_movimiento = forms.ChoiceField(
+        choices=[('', 'Todos')] + MovimientoInventario.TIPO_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        required=False,
+        empty_label="Todos los productos",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
