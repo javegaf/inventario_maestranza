@@ -9,4 +9,10 @@
     {{ form|crispy }}
     <button type="submit" class="btn btn-primary">Ingresar</button>
 </form>
+<div class="mt-3">
+    <p>¿No tienes cuenta?</p>
+    <a href="{% url 'usuarios:registro' %}" class="btn btn-secondary">
+        Registrarse
+    </a>
+</div>
 {% endblock %}
