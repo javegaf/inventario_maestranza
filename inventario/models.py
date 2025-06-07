@@ -2,6 +2,8 @@
 
 from datetime import datetime
 from django.db import models
+from django.utils import timezone
+from django.conf import settings
 
 class Producto(models.Model):
     """Modelo que representa un producto individual del inventario."""
@@ -19,6 +21,21 @@ class Producto(models.Model):
     def __str__(self):
         """Retorna una representación legible del producto."""
         return f"{self.nombre} ({self.numero_serie})"
+
+    @property
+    def is_blocked(self):
+        """Check if the product is currently blocked."""
+        return AuditoriaInventario.objects.filter(
+            producto=self, 
+            bloqueado=True
+        ).exists()
+    
+    def get_active_block(self):
+        """Return the active block for this product, if any."""
+        return AuditoriaInventario.objects.filter(
+            producto=self, 
+            bloqueado=True
+        ).first()
 
 
 class MovimientoInventario(models.Model):
@@ -113,18 +130,20 @@ class AuditoriaInventario(models.Model):
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
-    bloqueado = models.BooleanField(default=True)
+    fecha_fin = models.DateTimeField(null=True, blank=True)  # This field is missing in the database
+    bloqueado = models.BooleanField(default=False)
     motivo = models.TextField(blank=True)
-    usuario_auditor = models.ForeignKey('usuarios.Usuario', on_delete=models.SET_NULL, null=True)
-
+    usuario_auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    
     def finalizar(self):
-        """Finaliza la auditoría y desbloquea el producto."""
+        """Mark the block as finished by setting an end date."""
+        self.fecha_fin = timezone.now()
         self.bloqueado = False
         self.save()
-
+        
     def __str__(self):
-        """Muestra el estado actual de la auditoría del producto."""
-        return f"Auditoría: {self.producto} - {'Bloqueado' if self.bloqueado else 'Finalizado'}"
+        status = "Bloqueado" if self.bloqueado else "Desbloqueado"
+        return f"{self.producto.nombre} - {status} - {self.fecha_inicio}"
 
 
 class Proyecto(models.Model):

@@ -24,4 +24,8 @@ urlpatterns = [
 
     path('reportes/', views.reportes, name='reportes'),
     path('precios/', views.historial_precios, name='historial_precios'),
+
+    path('productos/<int:producto_id>/toggle-block/', views.toggle_block_product, name='toggle_block_product'),
+
+    path('productos/historial-bloqueos/', views.historial_bloqueos, name='historial_bloqueos'),
 ]
