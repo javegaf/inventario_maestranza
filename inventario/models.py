@@ -61,16 +61,69 @@ class MovimientoInventario(models.Model):
 
 
 class Proveedor(models.Model):
-    """Modelo que representa un proveedor externo."""
+    """Modelo para gestionar proveedores."""
 
     nombre = models.CharField(max_length=100)
-    contacto = models.CharField(max_length=100)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20)
+    direccion = models.TextField(blank=True)
+    contacto_principal = models.CharField(max_length=100, blank=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
-        """Retorna el nombre del proveedor."""
-        return str(self.nombre)
+        return self.nombre
+
+    def get_calificacion_promedio(self):
+        """Calcula la calificación promedio del proveedor."""
+        evaluaciones = self.evaluaciones.all()
+        if evaluaciones:
+            return sum(e.calificacion for e in evaluaciones) / len(evaluaciones)
+        return 0
+
+    def get_total_compras(self):
+        """Obtiene el total de compras realizadas a este proveedor."""
+        return self.compras.count()
+
+
+class CompraProveedor(models.Model):
+    """Modelo para registrar compras a proveedores."""
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='compras')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_compra = models.DateTimeField(auto_now_add=True)
+    numero_factura = models.CharField(max_length=50, blank=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    @property
+    def total(self):
+        return self.cantidad * self.precio_unitario
+
+    def __str__(self):
+        return f"Compra a {self.proveedor.nombre} - {self.producto.nombre}"
+
+
+class EvaluacionProveedor(models.Model):
+    """Modelo para evaluar y calificar proveedores."""
+
+    CALIFICACIONES = [
+        (1, 'Muy Malo'),
+        (2, 'Malo'),
+        (3, 'Regular'),
+        (4, 'Bueno'),
+        (5, 'Excelente'),
+    ]
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='evaluaciones')
+    calificacion = models.IntegerField(choices=CALIFICACIONES)
+    comentario = models.TextField()
+    fecha_evaluacion = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"Evaluación de {self.proveedor.nombre} - {self.get_calificacion_display()}"
 
 
 class KitProducto(models.Model):

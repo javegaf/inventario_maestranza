@@ -1,0 +1,86 @@
+{# filepath: c:\Users\qwert\Documents\U\Tareas y Trabajos\5to\Gestion agil de proyectos\mclucho\inventario_maestranza\templates\proveedores\formulario_compra.html #}
+{% extends 'base.html' %}
+{% block title %}Registrar Compra{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-cart-plus"></i> Registrar Compra</h2>
+        <p class="text-muted">Registra una nueva compra a {{ proveedor.nombre }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Nueva Compra - {{ proveedor.nombre }}</h5>
+    </div>
+    <div class="card-body">
+        <!-- Add this to see if there are any form errors -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            <!-- Hidden field to ensure proveedor is passed -->
+            <input type="hidden" name="proveedor" value="{{ proveedor.id }}">
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.producto.id_for_label }}" class="form-label">Producto:</label>
+                        {{ form.producto }}
+                        {% if form.producto.errors %}
+                            <div class="text-danger">{{ form.producto.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.cantidad.id_for_label }}" class="form-label">Cantidad:</label>
+                        {{ form.cantidad }}
+                        {% if form.cantidad.errors %}
+                            <div class="text-danger">{{ form.cantidad.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.precio_unitario.id_for_label }}" class="form-label">Precio Unitario:</label>
+                        {{ form.precio_unitario }}
+                        {% if form.precio_unitario.errors %}
+                            <div class="text-danger">{{ form.precio_unitario.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.numero_factura.id_for_label }}" class="form-label">Número de Factura:</label>
+                        {{ form.numero_factura }}
+                        {% if form.numero_factura.errors %}
+                            <div class="text-danger">{{ form.numero_factura.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Opcional</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Registrar Compra
+                </button>
+                <a href="{% url 'detalle_proveedor' proveedor.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+{% endblock %}

@@ -1,0 +1,128 @@
+{# /templates/proveedores/detalle_proveedor.html #}
+{% extends 'base.html' %}
+{% block title %}{{ proveedor.nombre }}{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-building"></i> {{ proveedor.nombre }}</h2>
+        <p class="text-muted">Detalles del proveedor y historial de compras</p>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'registrar_compra' proveedor.id %}" class="btn btn-success">
+            <i class="bi bi-cart-plus"></i> Registrar Compra
+        </a>
+        <a href="{% url 'evaluar_proveedor' proveedor.id %}" class="btn btn-warning">
+            <i class="bi bi-star"></i> Evaluar
+        </a>
+    </div>
+</div>
+
+<!-- Provider Info -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Información del Proveedor</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ proveedor.correo }}</p>
+                <p><strong>Teléfono:</strong> {{ proveedor.telefono }}</p>
+                <p><strong>Contacto:</strong> {{ proveedor.contacto_principal|default:"No especificado" }}</p>
+                <p><strong>Dirección:</strong> {{ proveedor.direccion|default:"No especificada" }}</p>
+                <p><strong>Registro:</strong> {{ proveedor.fecha_registro|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h3>{{ proveedor.get_total_compras }}</h3>
+                        <p class="mb-0">Total Compras</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <h3>{{ proveedor.get_calificacion_promedio|floatformat:1 }}</h3>
+                        <p class="mb-0">Calificación Promedio</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Purchase History -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Historial de Compras</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Total</th>
+                        <th>Fecha</th>
+                        <th>Factura</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for compra in compras %}
+                    <tr>
+                        <td>{{ compra.producto.nombre }}</td>
+                        <td>{{ compra.cantidad }}</td>
+                        <td>${{ compra.precio_unitario }}</td>
+                        <td>${{ compra.total }}</td>
+                        <td>{{ compra.fecha_compra|date:"d/m/Y H:i" }}</td>
+                        <td>{{ compra.numero_factura|default:"N/A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No hay compras registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluations -->
+<div class="card">
+    <div class="card-header">
+        <h5>Evaluaciones</h5>
+    </div>
+    <div class="card-body">
+        {% for evaluacion in evaluaciones %}
+        <div class="mb-3 p-3 border rounded">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <strong>{{ evaluacion.get_calificacion_display }}</strong>
+                    <span class="ms-2">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= evaluacion.calificacion %}
+                                <i class="bi bi-star-fill text-warning"></i>
+                            {% else %}
+                                <i class="bi bi-star text-muted"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                <small class="text-muted">{{ evaluacion.fecha_evaluacion|date:"d/m/Y H:i" }}</small>
+            </div>
+            <p class="mt-2 mb-0">{{ evaluacion.comentario }}</p>
+            <small class="text-muted">Por: {{ evaluacion.usuario.username }}</small>
+        </div>
+        {% empty %}
+        <p class="text-muted">No hay evaluaciones para este proveedor.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

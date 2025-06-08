@@ -5,8 +5,8 @@ movimientos, proveedores, kits, alertas, reportes y precios.
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import models
-from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio, AlertaStock, AuditoriaInventario
-from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
+from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor, EvaluacionProveedor
+from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm, CompraProveedorForm, EvaluacionProveedorForm
 from django.db.models import Q
 from .forms import MovimientoFiltroForm
 import datetime
@@ -87,16 +87,88 @@ def crear_movimiento(request):
 
 def lista_proveedores(request):
     """Muestra todos los proveedores registrados en el sistema."""
-    proveedores = Proveedor.objects.all() #Falsos positivos dejar de lado
+    proveedores = Proveedor.objects.filter(activo=True).annotate(
+        total_compras=models.Count('compras')
+    )
     return render(request, 'proveedores/lista_proveedores.html', {'proveedores': proveedores})
 
 def crear_proveedor(request):
-    """Formulario para agregar un nuevo proveedor."""
+    """Formulario para crear un nuevo proveedor."""
     form = ProveedorForm(request.POST or None)
     if form.is_valid():
         form.save()
         return redirect('lista_proveedores')
-    return render(request, 'proveedores/formulario_proveedor.html', {'form': form})
+    return render(request, 'proveedores/formulario_proveedor.html', {'form': form, 'action': 'Crear'})
+
+def editar_proveedor(request, proveedor_id):
+    """Formulario para editar un proveedor existente."""
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    form = ProveedorForm(request.POST or None, instance=proveedor)
+    if form.is_valid():
+        form.save()
+        return redirect('lista_proveedores')
+    return render(request, 'proveedores/formulario_proveedor.html', {
+        'form': form, 
+        'proveedor': proveedor,
+        'action': 'Editar'
+    })
+
+def detalle_proveedor(request, proveedor_id):
+    """Vista detallada del proveedor con historial de compras y evaluaciones."""
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    compras = CompraProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_compra')
+    evaluaciones = EvaluacionProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_evaluacion')
+    
+    return render(request, 'proveedores/detalle_proveedor.html', {
+        'proveedor': proveedor,
+        'compras': compras,
+        'evaluaciones': evaluaciones,
+    })
+
+@login_required
+def registrar_compra(request, proveedor_id):
+    """Registrar una nueva compra a un proveedor."""
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    
+    if request.method == 'POST':
+        form = CompraProveedorForm(request.POST)
+        if form.is_valid():
+            compra = form.save(commit=False)
+            compra.proveedor = proveedor
+            compra.usuario = request.user
+            compra.save()
+            
+            # Update product stock
+            producto = compra.producto
+            producto.stock_actual += compra.cantidad
+            producto.save()
+            
+            return redirect('detalle_proveedor', proveedor_id=proveedor.id)
+    else:
+        form = CompraProveedorForm(initial={'proveedor': proveedor})
+    
+    return render(request, 'proveedores/formulario_compra.html', {
+        'form': form, 
+        'proveedor': proveedor
+    })
+
+@login_required
+def evaluar_proveedor(request, proveedor_id):
+    """Evaluar y calificar un proveedor."""
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    form = EvaluacionProveedorForm(request.POST or None)
+    
+    if form.is_valid():
+        evaluacion = form.save(commit=False)
+        evaluacion.proveedor = proveedor
+        evaluacion.usuario = request.user
+        evaluacion.save()
+        return redirect('detalle_proveedor', proveedor_id=proveedor.id)
+    
+    return render(request, 'proveedores/formulario_evaluacion.html', {
+        'form': form, 
+        'proveedor': proveedor
+    })
 
 # Alertas de stock
 
