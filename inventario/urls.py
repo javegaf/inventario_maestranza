@@ -1,15 +1,13 @@
-"""
-Definiciones de rutas URL para la app de inventario.
-Este archivo incluye las rutas asociadas a productos, movimientos de inventario,
-proveedores, alertas, kits, reportes e historial de precios.
-"""
-
 from django.urls import path
 from . import views
 
 urlpatterns = [
     path('productos/', views.lista_productos, name='listar_productos'),
-    path('productos/nuevo/', views.crear_producto, name='crear_producto'),
+    path('productos/crear/', views.crear_producto, name='crear_producto'),
+    path('productos/editar/<int:producto_id>/', views.editar_producto, name='editar_producto'),
+    path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
+    path('productos/<int:producto_id>/toggle-block/', views.toggle_block_product, name='toggle_block_product'),
+    path('productos/historial-bloqueos/', views.historial_bloqueos, name='historial_bloqueos'),
 
     path('movimientos/', views.lista_movimientos, name='lista_movimientos'),
     path('movimientos/nuevo/', views.crear_movimiento, name='crear_movimiento'),
@@ -27,9 +25,10 @@ urlpatterns = [
     path('kits/nuevo/', views.crear_kit, name='crear_kit'),
 
     path('reportes/', views.reportes, name='reportes'),
+    path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),
+    path('reportes/exportar/pdf/', views.exportar_pdf, name='exportar_pdf'),
+
     path('precios/', views.historial_precios, name='historial_precios'),
 
-    path('productos/<int:producto_id>/toggle-block/', views.toggle_block_product, name='toggle_block_product'),
-
-    path('productos/historial-bloqueos/', views.historial_bloqueos, name='historial_bloqueos'),
+    path('dashboard/', views.dashboard_inventario, name='dashboard'),
 ]

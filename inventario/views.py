@@ -3,30 +3,39 @@ Vistas del módulo inventario: productos,
 movimientos, proveedores, kits, alertas, reportes y precios.
 """
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db import models
-from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor, EvaluacionProveedor
-from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm, CompraProveedorForm, EvaluacionProveedorForm
-from django.db.models import Q
-from .forms import MovimientoFiltroForm
+import csv
 import datetime
+from io import BytesIO
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.db import models
+from django.db.models import F, Count, Q
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+
+from .models import (
+    Producto, MovimientoInventario, Proveedor, KitProducto,
+    HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
+    EvaluacionProveedor, InformeInventario
+)
+from .forms import (
+    ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
+    MovimientoFiltroForm, ProveedorForm, KitProductoForm,
+    CompraProveedorForm, EvaluacionProveedorForm
+)
 
 # Productos
 
 def lista_productos(request):
-    """Muestra la lista de productos registrados en el sistema."""
     productos = Producto.objects.all()
-    
-    # Add audit information
     for producto in productos:
         producto.block_status = producto.is_blocked
-    
     return render(request, 'productos/lista_productos.html', {'productos': productos})
 
 def crear_producto(request):
-    """Formulario para crear un nuevo producto en el inventario."""
     form = ProductoForm(request.POST or None)
     if form.is_valid():
         form.save()
@@ -36,64 +45,44 @@ def crear_producto(request):
 # Movimientos
 
 def lista_movimientos(request):
-    """Muestra el historial de movimientos de inventario con capacidad de filtrado."""
-    # Start with all movements
     movimientos = MovimientoInventario.objects.all().order_by('-fecha')
-    
-    # Initialize the filter form
     form = MovimientoFiltroForm(request.GET or None)
-    
-    # Apply filters if form is valid
+
     if form.is_valid():
-        # Filter by date range
         if form.cleaned_data.get('fecha_inicio'):
             fecha_inicio = form.cleaned_data['fecha_inicio']
             movimientos = movimientos.filter(fecha__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
-        
         if form.cleaned_data.get('fecha_fin'):
             fecha_fin = form.cleaned_data['fecha_fin']
             movimientos = movimientos.filter(fecha__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
-        
-        # Filter by movement type
         if form.cleaned_data.get('tipo_movimiento'):
             movimientos = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
-        
-        # Filter by product
         if form.cleaned_data.get('producto'):
             movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
-    
+
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
         'filtro_form': form
     })
 
 def crear_movimiento(request):
-    """Formulario para registrar un nuevo movimiento de inventario."""
     form = MovimientoInventarioForm(request.POST or None)
-    
     if form.is_valid():
         producto = form.cleaned_data['producto']
-        
-        # Check if product is blocked
         if producto.is_blocked:
             form.add_error('producto', 'Este producto está bloqueado y no puede ser modificado.')
         else:
             form.save()
             return redirect('lista_movimientos')
-            
     return render(request, 'movimientos/formulario_movimiento.html', {'form': form})
 
 # Proveedores
 
 def lista_proveedores(request):
-    """Muestra todos los proveedores registrados en el sistema."""
-    proveedores = Proveedor.objects.filter(activo=True).annotate(
-        total_compras=models.Count('compras')
-    )
+    proveedores = Proveedor.objects.filter(activo=True).annotate(total_compras=models.Count('compras'))
     return render(request, 'proveedores/lista_proveedores.html', {'proveedores': proveedores})
 
 def crear_proveedor(request):
-    """Formulario para crear un nuevo proveedor."""
     form = ProveedorForm(request.POST or None)
     if form.is_valid():
         form.save()
@@ -101,35 +90,26 @@ def crear_proveedor(request):
     return render(request, 'proveedores/formulario_proveedor.html', {'form': form, 'action': 'Crear'})
 
 def editar_proveedor(request, proveedor_id):
-    """Formulario para editar un proveedor existente."""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
     form = ProveedorForm(request.POST or None, instance=proveedor)
     if form.is_valid():
         form.save()
         return redirect('lista_proveedores')
     return render(request, 'proveedores/formulario_proveedor.html', {
-        'form': form, 
-        'proveedor': proveedor,
-        'action': 'Editar'
+        'form': form, 'proveedor': proveedor, 'action': 'Editar'
     })
 
 def detalle_proveedor(request, proveedor_id):
-    """Vista detallada del proveedor con historial de compras y evaluaciones."""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
     compras = CompraProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_compra')
     evaluaciones = EvaluacionProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_evaluacion')
-    
     return render(request, 'proveedores/detalle_proveedor.html', {
-        'proveedor': proveedor,
-        'compras': compras,
-        'evaluaciones': evaluaciones,
+        'proveedor': proveedor, 'compras': compras, 'evaluaciones': evaluaciones
     })
 
 @login_required
 def registrar_compra(request, proveedor_id):
-    """Registrar una nueva compra a un proveedor."""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
-    
     if request.method == 'POST':
         form = CompraProveedorForm(request.POST)
         if form.is_valid():
@@ -137,46 +117,30 @@ def registrar_compra(request, proveedor_id):
             compra.proveedor = proveedor
             compra.usuario = request.user
             compra.save()
-            
-            # Update product stock
             producto = compra.producto
             producto.stock_actual += compra.cantidad
             producto.save()
-            
             return redirect('detalle_proveedor', proveedor_id=proveedor.id)
     else:
         form = CompraProveedorForm(initial={'proveedor': proveedor})
-    
-    return render(request, 'proveedores/formulario_compra.html', {
-        'form': form, 
-        'proveedor': proveedor
-    })
+    return render(request, 'proveedores/formulario_compra.html', {'form': form, 'proveedor': proveedor})
 
 @login_required
 def evaluar_proveedor(request, proveedor_id):
-    """Evaluar y calificar un proveedor."""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
     form = EvaluacionProveedorForm(request.POST or None)
-    
     if form.is_valid():
         evaluacion = form.save(commit=False)
         evaluacion.proveedor = proveedor
         evaluacion.usuario = request.user
         evaluacion.save()
         return redirect('detalle_proveedor', proveedor_id=proveedor.id)
-    
-    return render(request, 'proveedores/formulario_evaluacion.html', {
-        'form': form, 
-        'proveedor': proveedor
-    })
+    return render(request, 'proveedores/formulario_evaluacion.html', {'form': form, 'proveedor': proveedor})
 
-# Alertas de stock
+# Alertas
 
 def alertas_stock(request):
-    """Muestra productos cuyo stock actual está por debajo del mínimo definido."""
     productos_bajo_stock = Producto.objects.filter(stock_actual__lt=models.F('stock_minimo'))
-    
-
     if request.method == 'POST' and 'alerta_id' in request.POST:
         alerta_id = request.POST.get('alerta_id')
         try:
@@ -186,21 +150,14 @@ def alertas_stock(request):
             return redirect('alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
-    
-    
     alertas = []
     for producto in productos_bajo_stock:
-        alerta, created = AlertaStock.objects.get_or_create(
-            producto=producto,
-            atendido=False,
-            defaults={
-                'mensaje': f'El producto {producto.nombre} tiene un stock de {producto.stock_actual} unidades, por debajo del mínimo de {producto.stock_minimo}.'
-            }
+        alerta, _ = AlertaStock.objects.get_or_create(
+            producto=producto, atendido=False,
+            defaults={'mensaje': f'El producto {producto.nombre} tiene un stock de {producto.stock_actual} unidades, por debajo del mínimo de {producto.stock_minimo}.'}
         )
         alertas.append(alerta)
-    
     todas_alertas = AlertaStock.objects.filter(atendido=False)
-    
     return render(request, 'alertas/alertas_stock.html', {
         'productos_bajo_stock': productos_bajo_stock,
         'alertas': todas_alertas
@@ -209,12 +166,10 @@ def alertas_stock(request):
 # Kits
 
 def lista_kits(request):
-    """Muestra la lista de kits de productos disponibles."""
-    kits = KitProducto.objects.all() #Falsos positivos dejar de lado
+    kits = KitProducto.objects.all()
     return render(request, 'kits/lista_kits.html', {'kits': kits})
 
 def crear_kit(request):
-    """Formulario para crear un nuevo kit de productos."""
     form = KitProductoForm(request.POST or None)
     if form.is_valid():
         form.save()
@@ -224,39 +179,71 @@ def crear_kit(request):
 # Reportes
 
 def reportes(request):
-    """Vista de reportes disponibles del inventario."""
-    return render(request, 'reportes/reportes.html')
+    informes = InformeInventario.objects.all().order_by('-fecha_generacion')
+    movimientos = MovimientoInventario.objects.select_related('producto').order_by('-fecha')[:50]
+    return render(request, 'reportes/reportes.html', {
+        'reportes': informes, 'movimientos': movimientos
+    })
 
-# Historial de precios
+def exportar_csv(request):
+    try:
+        movimientos = MovimientoInventario.objects.select_related('producto').all()
+        ahora = datetime.datetime.now()
+        fecha_str = ahora.strftime('%Y-%m-%d_%H-%M')
+        nombre_archivo = f'reporte_inventario_{fecha_str}.csv'
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        writer = csv.writer(response)
+        writer.writerow(['Producto', 'Tipo', 'Cantidad', 'Fecha'])
+        for m in movimientos:
+            writer.writerow([
+                m.producto.nombre,
+                m.get_tipo_display(),
+                m.cantidad,
+                m.fecha.strftime('%d/%m/%Y %H:%M')
+            ])
+        InformeInventario.objects.create(nombre=nombre_archivo, fecha_generacion=ahora)
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error al generar el CSV: {str(e)}", status=500)
+
+def exportar_pdf(request):
+    movimientos = MovimientoInventario.objects.select_related('producto').all()
+    ahora = datetime.datetime.now()
+    fecha_str = ahora.strftime('%Y-%m-%d_%H-%M')
+    try:
+        template = get_template('reportes/reporte_pdf.html')
+        html = template.render({'movimientos': movimientos, 'ahora': ahora})
+        buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(BytesIO(html.encode('UTF-8')), dest=buffer, encoding='UTF-8')
+        if pisa_status.err:
+            return HttpResponse("Error al generar PDF", status=500)
+        InformeInventario.objects.create(nombre=f'reporte_inventario_{fecha_str}.pdf', fecha_generacion=ahora)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="reporte_inventario_{fecha_str}.pdf"'
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error al generar el PDF: {str(e)}", status=500)
+
+# Historial
 
 def historial_precios(request):
-    """Muestra el historial de precios por producto."""
-    historial = HistorialPrecio.objects.all() #Falsos positivos dejar de lado
+    historial = HistorialPrecio.objects.all()
     return render(request, 'precios/historial_precios.html', {'historial': historial})
 
 def historial_bloqueos(request):
-    """Muestra el historial de bloqueos y desbloqueos de productos."""
     auditorias = AuditoriaInventario.objects.all().order_by('-fecha_inicio')
     return render(request, 'productos/historial_bloqueos.html', {'auditorias': auditorias})
 
 @login_required
 def toggle_block_product(request, producto_id):
-    """Toggle the blocked status of a product."""
     producto = get_object_or_404(Producto, id=producto_id)
-    
-    # Check if there's an active block for this product
-    auditoria_activa = AuditoriaInventario.objects.filter(
-        producto=producto, 
-        bloqueado=True
-    ).first()
-    
+    auditoria_activa = AuditoriaInventario.objects.filter(producto=producto, bloqueado=True).first()
     if auditoria_activa:
-        # Unblock the product
         auditoria_activa.finalizar()
         mensaje = f"Producto '{producto.nombre}' desbloqueado exitosamente."
         estado = False
     else:
-        # Block the product
         motivo = request.POST.get('motivo', 'Bloqueado por auditoría o mantenimiento')
         AuditoriaInventario.objects.create(
             producto=producto,
@@ -266,12 +253,62 @@ def toggle_block_product(request, producto_id):
         )
         mensaje = f"Producto '{producto.nombre}' bloqueado exitosamente."
         estado = True
-    
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({
-            'status': 'success',
-            'message': mensaje,
-            'blocked': estado
-        })
-    
+        return JsonResponse({'status': 'success', 'message': mensaje, 'blocked': estado})
+    return redirect('listar_productos')
+
+# Dashboard y edición
+
+@login_required
+def dashboard_inventario(request):
+    total_productos = Producto.objects.count()
+    productos_sin_stock = Producto.objects.filter(stock_actual=0).count()
+    productos_bajo_minimo = Producto.objects.filter(stock_actual__lt=F('stock_minimo')).count()
+    movimientos = MovimientoInventario.objects.values('tipo').annotate(total=Count('id')).order_by('tipo')
+    tipos = [m['tipo'].capitalize() for m in movimientos]
+    cantidades = [m['total'] for m in movimientos]
+    colores_contexto = {
+        'Entrada': 'rgba(75, 192, 192, 0.6)',
+        'Salida': 'rgba(255, 99, 132, 0.6)',
+        'Ajuste': 'rgba(255, 206, 86, 0.6)',
+        'Devolucion': 'rgba(54, 162, 235, 0.6)',
+    }
+    colores_barras = [colores_contexto.get(tipo.capitalize(), 'rgba(153, 102, 255, 0.6)') for tipo in tipos]
+    alertas_stock = AlertaStock.objects.filter(atendido=False).select_related('producto').order_by('-fecha_alerta')
+    proveedores = Producto.objects.values('proveedor__nombre').annotate(total=Count('id')).order_by('-total')
+    nombres_proveedores = [p['proveedor__nombre'] or 'Sin proveedor' for p in proveedores]
+    cantidades_proveedor = [p['total'] for p in proveedores]
+    context = {
+        'total_productos': total_productos,
+        'productos_sin_stock': productos_sin_stock,
+        'productos_bajo_minimo': productos_bajo_minimo,
+        'tipos_movimiento': tipos,
+        'cantidades_movimiento': cantidades,
+        'colores_barras': colores_barras,
+        'alertas_stock': alertas_stock,
+        'nombres_proveedores': nombres_proveedores,
+        'cantidades_proveedor': cantidades_proveedor,
+    }
+    return render(request, 'inventario/dashboard.html', context)
+
+def editar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, pk=producto_id)
+    fecha_actual = producto.fecha_vencimiento
+    if request.method == 'POST':
+        form = ProductoEditableForm(request.POST, instance=producto)
+        if form.is_valid():
+            producto_editado = form.save(commit=False)
+            if not form.cleaned_data.get('fecha_vencimiento'):
+                producto_editado.fecha_vencimiento = fecha_actual
+            producto_editado.save()
+            messages.success(request, "Producto actualizado correctamente.")
+            return redirect('listar_productos')
+    else:
+        form = ProductoEditableForm(instance=producto)
+    return render(request, 'productos/form_producto.html', {'form': form})
+
+def eliminar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    producto.delete()
+    messages.success(request, 'Producto eliminado correctamente.')
     return redirect('listar_productos')

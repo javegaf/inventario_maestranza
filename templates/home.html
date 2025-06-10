@@ -1,20 +1,81 @@
-{# /templates/home.html #}
 {% extends 'base.html' %}
 {% block title %}Inicio - Inventario{% endblock %}
+
 {% block content %}
-<div class="text-center">
-    <h1 class="mb-4">Bienvenido al Sistema de Control de Inventarios</h1>
-    <p class="lead">Accede rápidamente a las secciones principales:</p>
-    <div class="row justify-content-center mt-4">
-        <div class="col-md-4">
-            <a href="{% url 'listar_productos' %}" class="btn btn-outline-primary btn-lg w-100 mb-3">Productos</a>
-            <a href="{% url 'lista_movimientos' %}" class="btn btn-outline-success btn-lg w-100 mb-3">Movimientos</a>
-            <a href="{% url 'alertas_stock' %}" class="btn btn-outline-danger btn-lg w-100 mb-3">Alertas</a>
-            <a href="{% url 'lista_proveedores' %}" class="btn btn-outline-secondary btn-lg w-100 mb-3">Proveedores</a>
-            <a href="{% url 'lista_kits' %}" class="btn btn-outline-info btn-lg w-100 mb-3">Kits</a>
-            <a href="{% url 'reportes' %}" class="btn btn-outline-dark btn-lg w-100 mb-3">Reportes</a>
-            <a href="{% url 'historial_precios' %}" class="btn btn-outline-warning btn-lg w-100 mb-3">Historial de Precios</a>
-        </div>
+<h1 class="text-center fw-bold mb-4">Panel Principal</h1>
+<p class="text-center lead">Selecciona una sección para continuar:</p>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mt-3">
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-box display-4 text-primary"></i>
+        <h5 class="card-title mt-2">Productos</h5>
+        <a href="{% url 'listar_productos' %}" class="btn btn-outline-primary w-100 mt-2">Ir a Productos</a>
+      </div>
     </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-arrow-left-right display-4 text-success"></i>
+        <h5 class="card-title mt-2">Movimientos</h5>
+        <a href="{% url 'lista_movimientos' %}" class="btn btn-outline-success w-100 mt-2">Ver Movimientos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-exclamation-triangle-fill display-4 text-danger"></i>
+        <h5 class="card-title mt-2">Alertas</h5>
+        <a href="{% url 'alertas_stock' %}" class="btn btn-outline-danger w-100 mt-2">Ver Alertas</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-truck display-4 text-secondary"></i>
+        <h5 class="card-title mt-2">Proveedores</h5>
+        <a href="{% url 'lista_proveedores' %}" class="btn btn-outline-secondary w-100 mt-2">Lista de Proveedores</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-collection display-4 text-info"></i>
+        <h5 class="card-title mt-2">Kits</h5>
+        <a href="{% url 'lista_kits' %}" class="btn btn-outline-info w-100 mt-2">Ver Kits</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-bar-chart-line-fill display-4 icon-reportes"></i>
+        <h5 class="card-title mt-2">Reportes</h5>
+        <a href="{% url 'reportes' %}" class="btn btn-reportes w-100 mt-2">Ver Reportes</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-clock-history display-4 icon-precios"></i>
+        <h5 class="card-title mt-2">Historial de Precios</h5>
+        <a href="{% url 'historial_precios' %}" class="btn btn-historial w-100 mt-2">Ver Historial</a>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
