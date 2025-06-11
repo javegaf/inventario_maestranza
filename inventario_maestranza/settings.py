@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     # Terceros
     'crispy_forms',
     'crispy_bootstrap5',
+
 ]
 
 MIDDLEWARE = [
@@ -121,3 +122,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Modelo de usuario personalizado
 AUTH_USER_MODEL = 'usuarios.Usuario'
+
+AUTH_USER_MODEL = 'usuarios.Usuario'
+LOGIN_URL = 'usuarios:login'
+LOGIN_REDIRECT_URL = 'usuarios:home'
+LOGOUT_REDIRECT_URL = 'usuarios:login'
+ 
+

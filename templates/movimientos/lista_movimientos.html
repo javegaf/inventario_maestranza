@@ -2,27 +2,82 @@
 {% extends 'base.html' %}
 {% block title %}Historial de movimientos{% endblock %}
 {% block content %}
-<h2>Historial de movimientos</h2>
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th>Producto</th>
-            <th>Tipo</th>
-            <th>Cantidad</th>
-            <th>Fecha</th>
-            <th>Usuario</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for movimiento in movimientos %}
-        <tr>
-            <td>{{ movimiento.producto }}</td>
-            <td>{{ movimiento.get_tipo_display }}</td>
-            <td>{{ movimiento.cantidad }}</td>
-            <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
-            <td>{{ movimiento.usuario }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="row mb-4">
+    <div class="col">
+        <h2>Historial de movimientos</h2>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filtros</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="{{ filtro_form.fecha_inicio.id_for_label }}" class="form-label">Fecha inicio:</label>
+                {{ filtro_form.fecha_inicio }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.fecha_fin.id_for_label }}" class="form-label">Fecha fin:</label>
+                {{ filtro_form.fecha_fin }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.tipo_movimiento.id_for_label }}" class="form-label">Tipo de movimiento:</label>
+                {{ filtro_form.tipo_movimiento }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.producto.id_for_label }}" class="form-label">Producto:</label>
+                {{ filtro_form.producto }}
+            </div>
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <a href="{% url 'lista_movimientos' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar filtros
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Resultados</h5>
+        <span class="badge bg-primary">{{ movimientos.count }} movimientos</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                    <tr class="{% if movimiento.tipo == 'entrada' %}table-success{% elif movimiento.tipo == 'salida' %}table-danger{% elif movimiento.tipo == 'ajuste' %}table-warning{% else %}table-info{% endif %}">
+                        <td>{{ movimiento.producto }}</td>
+                        <td>{{ movimiento.get_tipo_display }}</td>
+                        <td>{{ movimiento.cantidad }}</td>
+                        <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{{ movimiento.usuario }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No se encontraron movimientos con los filtros aplicados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% load static %}
+<script src="{% static 'js/realtimetable.js' %}"></script>
 {% endblock %}
