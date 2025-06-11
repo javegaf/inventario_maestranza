@@ -3,8 +3,34 @@
 {% block title %}Listado de Productos{% endblock %}
 {% block content %}
 <h2>Listado de Productos</h2>
-<table class="table table-bordered table-striped">
-    <thead>
+<br>
+<form method="get" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4" style="max-width:100%;height:auto;">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" name="nombre" id="nombre" class="form-control" value="{{ request.GET.nombre }}">
+        </div>
+        <div class="col-md-4">
+            <label for="ubicacion" class="form-label">Ubicación</label>
+            <input type="text" name="ubicacion" id="ubicacion" class="form-control" value="{{ request.GET.ubicacion }}">
+        </div>
+        <div class="col-md-3">
+            <label for="categoria" class="form-label">Categoría</label>
+            <select name="categoria" id="categoria" class="form-select">
+                <option value="">Todas</option>
+                {% for c in categorias %}
+                <option value="{{ c }}" {% if request.GET.categoria == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<table class="table table-bordered table-striped border-dark">
+    <thead class="table-dark">
         <tr>
             <th>Nombre</th>
             <th>N° Serie</th>
@@ -14,7 +40,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for producto in productos %}
+        {% for producto in page_obj %}
         <tr>
             <td>{{ producto.nombre }}</td>
             <td>{{ producto.numero_serie }}</td>
@@ -22,8 +48,46 @@
             <td>{{ producto.categoria }}</td>
             <td>{{ producto.stock_actual }}</td>
         </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No se encontraron productos.</td>
+        </tr>
         {% endfor %}
     </tbody>
 </table>
-<a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+
+<nav aria-label="Page navigation">
+    <a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+    <ul class="pagination justify-content-center">
+
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Anterior</span>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% else %}
+        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+        {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Siguiente</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
 {% endblock %}

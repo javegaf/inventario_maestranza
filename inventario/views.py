@@ -7,13 +7,41 @@ from django.shortcuts import render, redirect
 from django.db import models
 from .models import Producto, MovimientoInventario, Proveedor, KitProducto, HistorialPrecio
 from .forms import ProductoForm, MovimientoInventarioForm, ProveedorForm, KitProductoForm
+from django.core.paginator import Paginator
 
 # Productos
-
 def lista_productos(request):
     """Muestra la lista de productos registrados en el sistema."""
     productos = Producto.objects.all() #Falsos positivos dejar de lado
-    return render(request, 'productos/lista_productos.html', {'productos': productos})
+
+    #para el filtrado
+    nombre = request.GET.get('nombre', '')
+    ubicacion = request.GET.get('ubicacion', '')
+    categoria = request.GET.get('categoria', '')
+
+    if nombre:
+        productos = productos.filter(nombre__icontains=nombre)
+    if ubicacion:
+        productos = productos.filter(ubicacion__icontains=ubicacion)
+    if categoria:
+        productos = productos.filter(categoria__icontains=categoria)
+
+    # Obtener categorías únicas para el filtro
+    categorias = Producto.objects.values_list('categoria', flat=True).distinct()
+
+    # Paginador: 5 productos por página
+    paginator = Paginator(productos, 6)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'categorias': categorias,
+        'request': request
+    }
+    
+    return render(request, 'productos/lista_productos.html', context)
+    
 
 def crear_producto(request):
     """Formulario para crear un nuevo producto en el inventario."""
@@ -60,7 +88,7 @@ def alertas_stock(request):
     productos_bajo_stock = Producto.objects.filter(stock_actual__lt=models.F('stock_minimo'))
     #Falsos positivos dejar de lado
     return render(request, 'alertas/alertas_stock.html',
-                  {'productos_bajo_stock': productos_bajo_stock})
+                {'productos_bajo_stock': productos_bajo_stock})
 
 # Kits
 

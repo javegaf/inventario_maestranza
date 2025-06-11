@@ -3,11 +3,61 @@
 {% load crispy_forms_tags %}
 {% block title %}Formulario de Producto{% endblock %}
 {% block content %}
-<h2>{% if form.instance.pk %}Editar{% else %}Agregar{% endif %} Producto</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form|crispy }}
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a href="{% url 'listar_productos' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+<div class="container mt-6">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <h2 class="mb-4">{% if form.instance.pk %}Editar{% else %}Agregar{% endif %} Producto</h2>
+
+            <form method="post" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        {{ form.nombre.label_tag }}
+                        {{ form.nombre }}
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        {{ form.descripcion.label_tag }}
+                        {{ form.descripcion }}
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        {{ form.ubicacion.label_tag }}
+                        {{ form.ubicacion }}
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        {{ form.categoria.label_tag }}
+                        {{ form.categoria }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.proveedor.label_tag }}
+                        {{ form.proveedor }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.fecha_vencimiento.label_tag }}
+                        {{ form.fecha_vencimiento }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.stock_actual.label_tag }}
+                        {{ form.stock_actual }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.stock_minimo.label_tag }}
+                        {{ form.stock_minimo }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.precio.label_tag }}
+                        {{ form.precio }}
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        {{ form.numero_serie.label_tag }}
+                        {{ form.numero_serie }}
+                    </div>
+                </div>
+                <br>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a href="{% url 'listar_productos' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
