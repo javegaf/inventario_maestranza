@@ -1,0 +1,78 @@
+{# filepath: c:\Users\qwert\Documents\U\Tareas y Trabajos\5to\Gestion agil de proyectos\mclucho\inventario_maestranza\templates\productos\historial_bloqueos.html #}
+{% extends 'base.html' %}
+
+{% block title %}Historial de Bloqueos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-lock-fill text-danger"></i> Historial de Bloqueos</h2>
+            <p class="text-muted">Registro de todos los bloqueos y desbloqueos de productos en el sistema.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Registros de Bloqueos</h5>
+            <span class="badge bg-primary">{{ auditorias.count }} registros</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Estado</th>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin</th>
+                            <th>Duración</th>
+                            <th>Usuario</th>
+                            <th>Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for auditoria in auditorias %}
+                        <tr>
+                            <td>{{ auditoria.producto.nombre }}</td>
+                            <td>
+                                {% if auditoria.fecha_fin %}
+                                    <span class="badge bg-success">Desbloqueado</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Bloqueado</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ auditoria.fecha_inicio|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if auditoria.fecha_fin %}
+                                    {{ auditoria.fecha_fin|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted">En curso</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if auditoria.fecha_fin %}
+                                    {{ auditoria.fecha_fin|timeuntil:auditoria.fecha_inicio }}
+                                {% else %}
+                                    {{ auditoria.fecha_inicio|timesince }} (en curso)
+                                {% endif %}
+                            </td>
+                            <td>{{ auditoria.usuario_auditor }}</td>
+                            <td>{{ auditoria.motivo }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle"></i> No hay registros de bloqueos en el sistema.
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
