@@ -8,7 +8,6 @@
   <form method="post" id="form-editar-producto">
     {% csrf_token %}
     <div class="row">
-      <!-- Columna izquierda (NO editables) -->
       <div class="col-md-6">
         <div class="mb-3">
           <label class="form-label">Nombre</label>
@@ -29,23 +28,12 @@
         </div>
       </div>
 
-      <!-- Columna derecha (EDITABLES) -->
       <div class="col-md-6">
-        <div class="mb-3">
-          {{ form.proveedor|as_crispy_field }}
-        </div>
-        <div class="mb-3">
-          {{ form.descripcion|as_crispy_field }}
-        </div>
-        <div class="mb-3">
-          {{ form.ubicacion|as_crispy_field }}
-        </div>
-        <div class="mb-3">
-          {{ form.stock_actual|as_crispy_field }}
-        </div>
-        <div class="mb-3">
-          {{ form.stock_minimo|as_crispy_field }}
-        </div>
+        <div class="mb-3">{{ form.proveedor|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.descripcion|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.ubicacion|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.stock_actual|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.stock_minimo|as_crispy_field }}</div>
       </div>
     </div>
 
@@ -53,12 +41,11 @@
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmarModal">
         Guardar Cambios
       </button>
-      <a href="{% url 'listar_productos' %}" class="btn btn-secondary">Cancelar</a>
+      <a href="{% url 'inventario:listar_productos' %}" class="btn btn-secondary">Cancelar</a>
     </div>
   </form>
 </div>
 
-<!-- Modal de confirmación -->
 <div class="modal fade" id="confirmarModal" tabindex="-1" aria-labelledby="confirmarModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -66,9 +53,7 @@
         <h5 class="modal-title" id="confirmarModalLabel">Confirmar Guardado</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
-      <div class="modal-body">
-        ¿Estás seguro de que deseas guardar los cambios de este producto?
-      </div>
+      <div class="modal-body">¿Estás seguro de que deseas guardar los cambios de este producto?</div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="submit" class="btn btn-primary" form="form-editar-producto">Sí, guardar</button>

@@ -1,6 +1,7 @@
 {# /templates/alertas/alertas_stock.html #}
 {% extends 'base.html' %}
 {% block title %}Alertas de Stock{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
     <div class="col">
@@ -16,12 +17,11 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead>
+                    <thead class="table-dark">
                         <tr>
                             <th>Producto</th>
                             <th>Stock Actual</th>
                             <th>Stock Mínimo</th>
-                            
                             <th>Fecha Alerta</th>
                             <th>Acciones</th>
                         </tr>
@@ -34,7 +34,7 @@
                             <td>{{ alerta.producto.stock_minimo }}</td>
                             <td>{{ alerta.fecha_alerta|date:"d/m/Y H:i" }}</td>
                             <td>
-                                <form method="post" action="{% url 'alertas_stock' %}" class="d-inline">
+                                <form method="post" action="{% url 'inventario:alertas_stock' %}" class="d-inline">
                                     {% csrf_token %}
                                     <input type="hidden" name="alerta_id" value="{{ alerta.id }}">
                                     <button type="submit" class="btn btn-sm btn-success">
@@ -78,7 +78,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <a href="{% url 'listar_productos' %}" class="btn btn-primary w-100 h-100 d-flex align-items-center justify-content-center">
+                <a href="{% url 'inventario:listar_productos' %}" class="btn btn-primary w-100 h-100 d-flex align-items-center justify-content-center">
                     <span><i class="bi bi-arrow-right-circle"></i> Ver todos los productos</span>
                 </a>
             </div>

@@ -1,4 +1,3 @@
-{# /templates/proveedores/detalle_proveedor.html #}
 {% extends 'base.html' %}
 {% block title %}{{ proveedor.nombre }}{% endblock %}
 {% block content %}
@@ -8,10 +7,10 @@
         <p class="text-muted">Detalles del proveedor y historial de compras</p>
     </div>
     <div class="col-auto">
-        <a href="{% url 'registrar_compra' proveedor.id %}" class="btn btn-success">
+        <a href="{% url 'inventario:registrar_compra' proveedor.id %}" class="btn btn-success">
             <i class="bi bi-cart-plus"></i> Registrar Compra
         </a>
-        <a href="{% url 'evaluar_proveedor' proveedor.id %}" class="btn btn-warning">
+        <a href="{% url 'inventario:evaluar_proveedor' proveedor.id %}" class="btn btn-warning">
             <i class="bi bi-star"></i> Evaluar
         </a>
     </div>

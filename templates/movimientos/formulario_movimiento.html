@@ -1,13 +1,17 @@
-{# /templates/movimientos/formulario_movimiento.html #}
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 {% block title %}Nuevo Movimiento{% endblock %}
+
 {% block content %}
 <h2>Registrar Movimiento</h2>
 <form method="post">
     {% csrf_token %}
     {{ form|crispy }}
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a href="{% url 'lista_movimientos' %}" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-circle-fill"></i> Guardar
+    </button>
+    <a href="{% url 'inventario:lista_movimientos' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left-circle"></i> Cancelar
+    </a>
 </form>
 {% endblock %}

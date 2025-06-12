@@ -1,4 +1,3 @@
-{# filepath: c:\Users\qwert\Documents\U\Tareas y Trabajos\5to\Gestion agil de proyectos\mclucho\inventario_maestranza\templates\proveedores\formulario_proveedor.html #}
 {% extends 'base.html' %}
 {% block title %}{{ action }} Proveedor{% endblock %}
 {% block content %}
@@ -76,7 +75,7 @@
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-check-circle"></i> Guardar
                 </button>
-                <a href="{% url 'lista_proveedores' %}" class="btn btn-secondary">
+                <a href="{% url 'inventario:lista_proveedores' %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Cancelar
                 </a>
             </div>
