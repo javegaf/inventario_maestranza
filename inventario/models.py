@@ -64,6 +64,7 @@ class Proveedor(models.Model):
     """Modelo para gestionar proveedores."""
 
     nombre = models.CharField(max_length=100)
+    contacto = models.CharField(max_length=100, blank=True)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20)
     direccion = models.TextField(blank=True)
@@ -174,8 +175,8 @@ class AlertaStock(models.Model):
     atendido = models.BooleanField(default=False)
 
     def __str__(self):
-        """Muestra si la alerta fue atendida o sigue pendiente."""
-        return f"Alerta - {self.producto} ({'Resuelta' if self.atendido else 'Pendiente'})"
+
+        return f"Alerta: {self.producto.nombre} - {self.fecha_alerta}"
 
 
 class AuditoriaInventario(models.Model):

@@ -15,6 +15,13 @@ from django.db.models import F, Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import get_template
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib import messages
+import logging
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from xhtml2pdf import pisa
 
 from .models import (
@@ -170,7 +177,12 @@ def evaluar_proveedor(request, proveedor_id):
 # Alertas
 
 def alertas_stock(request):
+    """Muestra productos cuyo stock actual está por debajo del mínimo definido."""
     productos_bajo_stock = Producto.objects.filter(stock_actual__lt=models.F('stock_minimo'))
+    
+    print(f"DEBUG: Found {productos_bajo_stock.count()} products with low stock")
+    
+    # Handle mark as attended action
     if request.method == 'POST' and 'alerta_id' in request.POST:
         alerta_id = request.POST.get('alerta_id')
         try:
@@ -180,18 +192,143 @@ def alertas_stock(request):
             return redirect('alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
-    alertas = []
+    
+    # Check for new alerts and send emails automatically
+    nuevas_alertas = []
     for producto in productos_bajo_stock:
-        alerta, _ = AlertaStock.objects.get_or_create(
-            producto=producto, atendido=False,
-            defaults={'mensaje': f'El producto {producto.nombre} tiene un stock de {producto.stock_actual} unidades, por debajo del mínimo de {producto.stock_minimo}.'}
-        )
-        alertas.append(alerta)
-    todas_alertas = AlertaStock.objects.filter(atendido=False)
+        print(f"DEBUG: Checking product {producto.nombre} - Stock: {producto.stock_actual}, Min: {producto.stock_minimo}")
+        
+        # Check if there's already an active (unattended) alert for this product
+        alerta_existente = AlertaStock.objects.filter(
+            producto=producto,
+            atendido=False
+        ).first()
+        
+        print(f"DEBUG: Existing alert for {producto.nombre}: {alerta_existente}")
+        
+        if not alerta_existente:
+            # Create new alert only if no unattended alert exists
+            nueva_alerta = AlertaStock.objects.create(
+                producto=producto,
+                mensaje=f'El producto {producto.nombre} tiene un stock de {producto.stock_actual} unidades, por debajo del mínimo de {producto.stock_minimo}.',
+                atendido=False
+            )
+            nuevas_alertas.append(nueva_alerta)
+            print(f"DEBUG: Created new alert for {producto.nombre}")
+    
+    print(f"DEBUG: Total new alerts to send: {len(nuevas_alertas)}")
+    
+    # Send email for new alerts
+    if nuevas_alertas:
+        try:
+            print("DEBUG: Attempting to send email...")
+            enviar_alerta_automatica(nuevas_alertas)
+            print(f"DEBUG: Email sent successfully for {len(nuevas_alertas)} alerts")
+            logger.info(f"Automatic email sent for {len(nuevas_alertas)} new low stock alerts")
+        except Exception as e:
+            print(f"DEBUG: Error sending email: {str(e)}")
+            logger.error(f"Error sending automatic email: {str(e)}")
+    else:
+        print("DEBUG: No new alerts to send")
+    
+    # Get all unattended alerts
+    todas_alertas = AlertaStock.objects.filter(atendido=False).order_by('-fecha_alerta')
+    print(f"DEBUG: Total unattended alerts: {todas_alertas.count()}")
+    
     return render(request, 'alertas/alertas_stock.html', {
         'productos_bajo_stock': productos_bajo_stock,
         'alertas': todas_alertas
     })
+
+def enviar_alerta_automatica(alertas):
+    """Envía alertas automáticas por email a usuarios staff."""
+    
+    print("DEBUG: Starting email sending process...")
+    
+    # Email configuration
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'sistema@empresa.com')
+    
+    # Get only staff users with email addresses
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    staff_users = User.objects.filter(
+        is_active=True,
+        is_staff=True,  # Only staff users
+        email__isnull=False
+    ).exclude(email='')
+    
+    recipient_list = [user.email for user in staff_users]
+    
+    print(f"DEBUG: From email: {from_email}")
+    print(f"DEBUG: Found {len(recipient_list)} staff users with email")
+    print(f"DEBUG: Recipients: {recipient_list}")
+    
+    if not recipient_list:
+        print("DEBUG: No staff users with email found!")
+        return
+    
+    # Prepare email content
+    if len(alertas) == 1:
+        subject = f'🚨 ALERTA: {alertas[0].producto.nombre} - Stock Bajo'
+    else:
+        subject = f'🚨 ALERTA: {len(alertas)} productos con stock bajo'
+    
+    print(f"DEBUG: Email subject: {subject}")
+    
+    message_lines = [
+        'ALERTA AUTOMÁTICA DE STOCK BAJO',
+        f'Fecha: {timezone.now().strftime("%d/%m/%Y %H:%M")}',
+        '',
+        f'Se han detectado {len(alertas)} nuevos productos con stock por debajo del mínimo:',
+        '',
+    ]
+    
+    for alerta in alertas:
+        producto = alerta.producto
+        deficit = producto.stock_minimo - producto.stock_actual
+        
+        status = '🔴 SIN STOCK' if producto.stock_actual == 0 else '🟡 STOCK BAJO'
+        
+        message_lines.extend([
+            f'{status} - {producto.nombre}',
+            f'   Stock actual: {producto.stock_actual}',
+            f'   Stock mínimo: {producto.stock_minimo}',
+            f'   Déficit: {deficit} unidades',
+            ''
+        ])
+    
+    message_lines.extend([
+        '⚠️ ACCIÓN REQUERIDA:',
+        '• Revisar inventario',
+        '• Gestionar pedidos urgentes',
+        '• Coordinar con proveedores',
+        '',
+        '---',
+        'Mensaje automático del Sistema de Inventario.',
+    ])
+    
+    message = '\n'.join(message_lines)
+    
+    print("DEBUG: Email message prepared:")
+    print("=" * 50)
+    print(message)
+    print("=" * 50)
+    
+    # Send email
+    try:
+        print("DEBUG: Calling send_mail...")
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=recipient_list,
+            fail_silently=False,  # Change this to False to see errors
+        )
+        print("DEBUG: send_mail completed successfully!")
+    except Exception as e:
+        print(f"DEBUG: send_mail failed with error: {str(e)}")
+        raise e
 
 # Kits
 
