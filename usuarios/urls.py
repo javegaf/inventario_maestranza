@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 from .views import CustomLoginView, registro_view, custom_logout_view
 
-APP_NAME = "usuarios"  # Pylint friendly
+app_name = "usuarios"  # pylint: disable=invalid-name
 
 urlpatterns = [
     path('', views.home, name='home'),
