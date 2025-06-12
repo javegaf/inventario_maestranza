@@ -174,8 +174,8 @@ class AlertaStock(models.Model):
     atendido = models.BooleanField(default=False)
 
     def __str__(self):
-        """Muestra si la alerta fue atendida o sigue pendiente."""
-        return f"Alerta - {self.producto} ({'Resuelta' if self.atendido else 'Pendiente'})"
+
+        return f"Alerta: {self.producto.nombre} - {self.fecha_alerta}"
 
 
 class AuditoriaInventario(models.Model):
