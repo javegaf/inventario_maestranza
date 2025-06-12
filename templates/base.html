@@ -27,7 +27,13 @@
           <li class="nav-item"><a class="nav-link" href="{% url 'listar_productos' %}">Productos</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'lista_movimientos' %}">Movimientos</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'lista_proveedores' %}">Proveedores</a></li>
+
           {% if user.is_authenticated %}
+            <!-- Mostrar solo si el usuario es administrador -->
+            {% if user.rol == 'administrador' %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'usuarios:lista_usuarios' %}"><i class="bi bi-people-fill"></i> Usuarios</a></li>
+            {% endif %}
+
             <li class="nav-item"><a class="nav-link" href="{% url 'usuarios:perfil' %}">Mi Perfil</a></li>
             <li class="nav-item">
               <form method="post" action="{% url 'usuarios:logout' %}" onsubmit="return confirm('¿Cerrar sesión?');">
