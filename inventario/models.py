@@ -64,6 +64,7 @@ class Proveedor(models.Model):
     """Modelo para gestionar proveedores."""
 
     nombre = models.CharField(max_length=100)
+    contacto = models.CharField(max_length=100, blank=True)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20)
     direccion = models.TextField(blank=True)
