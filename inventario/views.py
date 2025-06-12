@@ -55,6 +55,14 @@ def lista_movimientos(request):
     movimientos = MovimientoInventario.objects.all().order_by('-fecha')
     form = MovimientoFiltroForm(request.GET or None)
 
+    # Check if non-staff user is trying to access movement creation
+    show_permission_alert = False
+    if request.user.is_authenticated and not request.user.is_staff:
+        # Log the attempt if they're trying to create movements
+        if 'create_attempt' in request.GET:
+            logger.warning(f"Non-staff user {request.user.username} (ID: {request.user.id}) attempted to create movement at {timezone.now()}")
+        show_permission_alert = True
+
     if form.is_valid():
         if form.cleaned_data.get('fecha_inicio'):
             fecha_inicio = form.cleaned_data['fecha_inicio']
@@ -69,9 +77,11 @@ def lista_movimientos(request):
 
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
-        'filtro_form': form
+        'filtro_form': form,
+        'show_permission_alert': show_permission_alert
     })
 
+# Keep crear_movimiento unchanged for now - it can still be accessed directly
 def crear_movimiento(request):
     form = MovimientoInventarioForm(request.POST or None)
     if form.is_valid():

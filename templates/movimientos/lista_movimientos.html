@@ -1,7 +1,10 @@
 {# /templates/movimientos/lista_movimientos.html #}
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Historial de movimientos{% endblock %}
 {% block content %}
+
+
 <div class="row mb-4">
     <div class="col">
         <h2>Historial de movimientos</h2>
@@ -45,7 +48,21 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Resultados</h5>
-        <span class="badge bg-primary">{{ movimientos.count }} movimientos</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary">{{ movimientos.count }} movimientos</span>
+            
+            <!-- Create Movement Button with Conditional Logic -->
+            {% if user.is_staff %}
+                <a href="{% url 'crear_movimiento' %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Crear movimiento
+                </a>
+            {% else %}
+                <!-- Button that triggers alert for non-staff users -->
+                <button type="button" class="btn btn-secondary btn-sm" onclick="showPermissionDenied()" title="Solo personal autorizado puede crear movimientos">
+                    <i class="bi bi-plus-circle"></i> Crear movimiento
+                </button>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -78,6 +95,33 @@
         </div>
     </div>
 </div>
-{% load static %}
+
 <script src="{% static 'js/realtimetable.js' %}"></script>
+
+<!-- JavaScript for Permission Alert -->
+<script>
+function showPermissionDenied() {
+    // Show alert notification
+    if (confirm('⚠️ ACCESO DENEGADO\n\nSolo el personal autorizado (staff) puede crear movimientos de inventario.\n\n¿Deseas contactar a un administrador?')) {
+        // Log the attempt by redirecting with a parameter
+        window.location.href = '{% url "lista_movimientos" %}?create_attempt=true';
+    }
+}
+
+// Auto-hide alerts after 8 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(function(alert) {
+        setTimeout(function() {
+            if (alert.classList.contains('show')) {
+                alert.classList.remove('show');
+                setTimeout(function() {
+                    alert.remove();
+                }, 150);
+            }
+        }, 8000);
+    });
+});
+</script>
+
 {% endblock %}
