@@ -14,42 +14,12 @@
         <div class="card-body">
           <form method="post" id="producto-form" novalidate class="needs-validation">
             {% csrf_token %}
-            <div class="mb-3">
-              {{ form.nombre.label_tag }} {{ form.nombre }}
-            </div>
-            <div class="mb-3">
-              {{ form.descripcion.label_tag }} {{ form.descripcion }}
-            </div>
-            <div class="mb-3">
-              {{ form.ubicacion.label_tag }} {{ form.ubicacion }}
-            </div>
-            <div class="mb-3">
-              {{ form.categoria.label_tag }} {{ form.categoria }}
-            </div>
-            <div class="mb-3">
-              {{ form.proveedor.label_tag }} {{ form.proveedor }}
-            </div>
-            <div class="mb-3">
-              {{ form.fecha_vencimiento.label_tag }} {{ form.fecha_vencimiento }}
-            </div>
-            <div class="mb-3">
-              {{ form.stock_actual.label_tag }} {{ form.stock_actual }}
-            </div>
-            <div class="mb-3">
-              {{ form.stock_minimo.label_tag }} {{ form.stock_minimo }}
-            </div>
-            <div class="mb-3">
-              {{ form.precio.label_tag }} {{ form.precio }}
-            </div>
-            <div class="mb-3">
-              {{ form.numero_serie.label_tag }} {{ form.numero_serie }}
-            </div>
-
+            {{ form|crispy }}
             <div class="mt-3 d-flex justify-content-end gap-2">
               <button type="button" class="btn btn-success" id="btn-validar">
                 <i class="bi bi-check-circle-fill"></i> Guardar
               </button>
-              <a href="{% url 'listar_productos' %}" class="btn btn-secondary">
+              <a href="{% url 'inventario:listar_productos' %}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left-circle"></i> Cancelar
               </a>
             </div>
@@ -60,7 +30,6 @@
   </div>
 </div>
 
-<!-- Modal de confirmación -->
 <div class="modal fade" id="confirmarModal" tabindex="-1" aria-labelledby="confirmarModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content shadow">
@@ -68,9 +37,7 @@
         <h5 class="modal-title" id="confirmarModalLabel">Confirmar Guardado</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
-      <div class="modal-body">
-        ¿Estás seguro de que deseas guardar este producto?
-      </div>
+      <div class="modal-body">¿Estás seguro de que deseas guardar este producto?</div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="submit" form="producto-form" class="btn btn-primary">Sí, guardar</button>

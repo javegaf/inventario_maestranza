@@ -1,4 +1,3 @@
-{# filepath: c:\Users\qwert\Documents\U\Tareas y Trabajos\5to\Gestion agil de proyectos\mclucho\inventario_maestranza\templates\proveedores\formulario_compra.html #}
 {% extends 'base.html' %}
 {% block title %}Registrar Compra{% endblock %}
 {% block content %}
@@ -14,7 +13,6 @@
         <h5>Nueva Compra - {{ proveedor.nombre }}</h5>
     </div>
     <div class="card-body">
-        <!-- Add this to see if there are any form errors -->
         {% if form.non_field_errors %}
             <div class="alert alert-danger">
                 {{ form.non_field_errors }}
@@ -23,7 +21,6 @@
         
         <form method="post">
             {% csrf_token %}
-            <!-- Hidden field to ensure proveedor is passed -->
             <input type="hidden" name="proveedor" value="{{ proveedor.id }}">
             
             <div class="row">
@@ -73,14 +70,11 @@
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-check-circle"></i> Registrar Compra
                 </button>
-                <a href="{% url 'detalle_proveedor' proveedor.id %}" class="btn btn-secondary">
+                <a href="{% url 'inventario:detalle_proveedor' proveedor.id %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Cancelar
                 </a>
             </div>
         </form>
     </div>
 </div>
-
-
-
 {% endblock %}
