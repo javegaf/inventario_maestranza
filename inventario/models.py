@@ -97,6 +97,22 @@ class HistorialLote(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     observaciones = models.TextField(blank=True)
     
+    @property
+    def diferencia(self):
+        """Calcula la diferencia entre cantidad nueva y anterior."""
+        return self.cantidad_nueva - self.cantidad_anterior
+    
+    @property
+    def tipo_diferencia(self):
+        """Retorna el tipo de diferencia: positiva, negativa o neutra."""
+        diff = self.diferencia
+        if diff > 0:
+            return 'positiva'
+        elif diff < 0:
+            return 'negativa'
+        else:
+            return 'neutra'
+    
     def __str__(self):
         return f"{self.lote.numero_lote} - {self.get_tipo_cambio_display()}"
     

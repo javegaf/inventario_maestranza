@@ -85,15 +85,19 @@
                         <td>{{ historia.cantidad_anterior }}</td>
                         <td>{{ historia.cantidad_nueva }}</td>
                         <td>
-                            {% with diferencia=historia.cantidad_nueva|add:historia.cantidad_anterior|add:"-"|add:historia.cantidad_anterior %}
-                                {% if diferencia > 0 %}
-                                    <span class="text-success">+{{ diferencia }}</span>
-                                {% elif diferencia < 0 %}
-                                    <span class="text-danger">{{ diferencia }}</span>
-                                {% else %}
-                                    <span class="text-muted">0</span>
-                                {% endif %}
-                            {% endwith %}
+                            {% if historia.diferencia > 0 %}
+                                <span class="text-success fw-bold">
+                                    <i class="bi bi-arrow-up"></i> +{{ historia.diferencia }}
+                                </span>
+                            {% elif historia.diferencia < 0 %}
+                                <span class="text-danger fw-bold">
+                                    <i class="bi bi-arrow-down"></i> {{ historia.diferencia }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">
+                                    <i class="bi bi-dash"></i> 0
+                                </span>
+                            {% endif %}
                         </td>
                         <td>{{ historia.fecha_cambio|date:"d/m/Y H:i:s" }}</td>
                         <td>
