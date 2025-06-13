@@ -19,15 +19,22 @@ class ProductoForm(forms.ModelForm):
         model = Producto
         fields = '__all__'
         widgets = {
-            'fecha_vencimiento': forms.DateInput(attrs={
-                'type': 'date',
-                'class': 'form-control',
-                'min': timezone.now().date().isoformat()
-            }),
+            'nombre': forms.TextInput(attrs={'placeholder': 'Ej. Taladro eléctrico'}),
+            'descripcion': forms.Textarea(attrs={'placeholder': 'Especifica los detalles del producto'}),
+            'ubicacion': forms.TextInput(attrs={'placeholder': 'Ej. Bodega A, estante 3'}),
+            'categoria': forms.TextInput(attrs={'placeholder': 'Ej. Herramientas'}),
+            'fecha_vencimiento': forms.DateInput(attrs={'placeholder': 'DD/MM/AAAA', 'type': 'date', 'class': 'form-control', 'min': timezone.now().date().isoformat()}),
+            'stock_actual': forms.NumberInput(attrs={'placeholder': 'Cantidad en inventario'}),
+            'stock_minimo': forms.NumberInput(attrs={'placeholder': 'Cantidad mínima'}),
+            'precio': forms.NumberInput(attrs={'placeholder': 'Ej. 19990'}),
+            'numero_serie': forms.TextInput(attrs={'placeholder': 'Ej. SN123456789'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for visible in self.visible_fields():
+            visible.field.widget.attrs['class'] = 'form-control'
+            
         self.fields['fecha_vencimiento'].widget.attrs['min'] = timezone.now().date().isoformat()
 
 

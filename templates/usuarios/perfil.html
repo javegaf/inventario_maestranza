@@ -2,10 +2,18 @@
 {% extends 'base.html' %}
 {% block title %}Perfil de usuario{% endblock %}
 {% block content %}
-<h2>Perfil de {{ user.username }}</h2>
-<ul class="list-group">
-    <li class="list-group-item"><strong>Nombre de usuario:</strong> {{ user.username }}</li>
-    <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
-    <li class="list-group-item"><strong>Rol:</strong> {{ user.rol }}</li>
-</ul>
+
+<div class="card mx-auto shadow p-4" style="max-width: 600px;">
+    <div class="card-body text-center">
+        <i class="bi bi-person-circle display-1 text-primary mb-4"></i>
+        <h3 class="card-title mb-4">Perfil de {{ user.username }}</h3>
+
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item"><strong>Nombre de usuario:</strong> {{ user.username }}</li>
+            <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
+            <li class="list-group-item"><strong>Rol:</strong> {{ user.get_rol_display }}</li>
+        </ul>
+    </div>
+</div>
+
 {% endblock %}
