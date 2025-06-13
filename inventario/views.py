@@ -5,6 +5,8 @@ movimientos, proveedores, kits, alertas, reportes y precios.
 
 import csv
 import datetime
+import logging
+
 from io import BytesIO
 
 from django.contrib import messages
@@ -17,22 +19,21 @@ from django.template.loader import get_template
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
-import logging
 from django.utils import timezone
-
-logger = logging.getLogger(__name__)
 from xhtml2pdf import pisa
 
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
-    EvaluacionProveedor, InformeInventario
+    EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
     MovimientoFiltroForm, ProveedorForm, KitProductoForm,
-    CompraProveedorForm, EvaluacionProveedorForm
+    CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm
 )
+
+logger = logging.getLogger(__name__)
 
 # Productos
 
@@ -83,14 +84,22 @@ def lista_movimientos(request):
 
 # Keep crear_movimiento unchanged for now - it can still be accessed directly
 def crear_movimiento(request):
-    form = MovimientoInventarioForm(request.POST or None)
-    if form.is_valid():
-        producto = form.cleaned_data['producto']
-        if producto.is_blocked:
-            form.add_error('producto', 'Este producto está bloqueado y no puede ser modificado.')
-        else:
-            form.save()
-            return redirect('lista_movimientos')
+    """Vista para crear un nuevo movimiento de inventario."""
+    if request.method == 'POST':
+        form = MovimientoInventarioForm(request.POST)
+        if form.is_valid():
+            producto = form.cleaned_data['producto']
+            if producto.is_blocked:
+                form.add_error('producto', 'Este producto está bloqueado y no puede ser modificado.')
+            else:
+                movimiento = form.save(commit=False)
+                movimiento.usuario = request.user
+                movimiento.save()  # This will trigger the save method that updates quantities
+                messages.success(request, 'Movimiento creado exitosamente.')
+                return redirect('lista_movimientos')
+    else:
+        form = MovimientoInventarioForm()
+    
     return render(request, 'movimientos/formulario_movimiento.html', {'form': form})
 
 # Proveedores
@@ -459,3 +468,147 @@ def eliminar_producto(request, producto_id):
     producto.delete()
     messages.success(request, 'Producto eliminado correctamente.')
     return redirect('listar_productos')
+
+@login_required
+def detalle_producto_lotes(request, producto_id):
+    """Vista para mostrar los lotes de un producto específico."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    lotes = LoteProducto.objects.filter(producto=producto, activo=True).order_by('fecha_vencimiento')
+    
+    # Add calculated fields to each lote
+    for lote in lotes:
+        if lote.dias_hasta_vencimiento < 0:
+            lote.dias_vencido = abs(lote.dias_hasta_vencimiento)
+        else:
+            lote.dias_vencido = 0
+    
+    # Apply filters
+    form = LoteFiltroForm(request.GET or None)
+    if form.is_valid():
+        estado = form.cleaned_data.get('estado')
+        if estado == 'vencido':
+            lotes = lotes.filter(fecha_vencimiento__lt=timezone.now().date())
+        elif estado == 'por_vencer':
+            fecha_limite = timezone.now().date() + datetime.timedelta(days=30)
+            lotes = lotes.filter(fecha_vencimiento__lte=fecha_limite, fecha_vencimiento__gte=timezone.now().date())
+        elif estado == 'activo':
+            lotes = lotes.filter(fecha_vencimiento__gte=timezone.now().date())
+            
+        if form.cleaned_data.get('fecha_vencimiento_desde'):
+            lotes = lotes.filter(fecha_vencimiento__gte=form.cleaned_data['fecha_vencimiento_desde'])
+        if form.cleaned_data.get('fecha_vencimiento_hasta'):
+            lotes = lotes.filter(fecha_vencimiento__lte=form.cleaned_data['fecha_vencimiento_hasta'])
+    
+    return render(request, 'productos/detalle_lotes.html', {
+        'producto': producto,
+        'lotes': lotes,
+        'filtro_form': form
+    })
+
+@login_required
+def crear_lote(request, producto_id):
+    """Vista para crear un nuevo lote."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    
+    if request.method == 'POST':
+        form = LoteProductoForm(request.POST, producto=producto)
+        if form.is_valid():
+            lote = form.save(commit=False)
+            lote.save()
+            
+            # Create history record with user information
+            HistorialLote.objects.create(
+                lote=lote,
+                tipo_cambio='creacion',
+                cantidad_anterior=0,
+                cantidad_nueva=lote.cantidad_inicial,
+                usuario=request.user,  # Add the current user
+                observaciones=f'Lote creado con {lote.cantidad_inicial} unidades por {request.user.username}'
+            )
+            
+            messages.success(request, f'Lote {lote.numero_lote} creado exitosamente.')
+            return redirect('detalle_producto_lotes', producto_id=producto.id)
+    else:
+        form = LoteProductoForm(producto=producto)
+    
+    return render(request, 'productos/formulario_lote.html', {
+        'form': form,
+        'producto': producto,
+        'action': 'Crear'
+    })
+
+@login_required
+def historial_lotes(request, lote_id=None):
+    """Vista para mostrar el historial de lotes."""
+    if lote_id:
+        lote = get_object_or_404(LoteProducto, id=lote_id)
+        historial = HistorialLote.objects.filter(lote=lote)
+        titulo = f'Historial del Lote {lote.numero_lote}'
+    else:
+        historial = HistorialLote.objects.all()
+        lote = None
+        titulo = 'Historial de Todos los Lotes'
+    
+    return render(request, 'productos/historial_lotes.html', {
+        'historial': historial,
+        'lote': lote,
+        'titulo': titulo
+    })
+
+@login_required
+def editar_lote(request, lote_id):
+    """Vista para editar un lote."""
+    lote = get_object_or_404(LoteProducto, id=lote_id)
+    
+    if request.method == 'POST':
+        cantidad_anterior = lote.cantidad_actual
+        form = LoteProductoForm(request.POST, instance=lote, producto=lote.producto)
+        if form.is_valid():
+            lote_editado = form.save()
+            
+            # Create history record if quantity changed
+            if cantidad_anterior != lote_editado.cantidad_actual:
+                HistorialLote.objects.create(
+                    lote=lote_editado,
+                    tipo_cambio='uso',
+                    cantidad_anterior=cantidad_anterior,
+                    cantidad_nueva=lote_editado.cantidad_actual,
+                    usuario=request.user,  # Current user making the edit
+                    observaciones=f'Cantidad modificada de {cantidad_anterior} a {lote_editado.cantidad_actual} por {request.user.username}'
+                )
+            
+            messages.success(request, f'Lote {lote.numero_lote} actualizado exitosamente.')
+            return redirect('detalle_producto_lotes', producto_id=lote.producto.id)
+    else:
+        form = LoteProductoForm(instance=lote, producto=lote.producto)
+    
+    return render(request, 'productos/formulario_lote.html', {
+        'form': form,
+        'producto': lote.producto,
+        'lote': lote,
+        'action': 'Editar'
+    })
+
+@login_required
+def api_producto_lotes(request, producto_id):
+    """API endpoint to get lotes for a specific product."""
+    try:
+        producto = get_object_or_404(Producto, id=producto_id)
+        lotes = LoteProducto.objects.filter(producto=producto, activo=True).order_by('fecha_vencimiento')
+        
+        lotes_data = []
+        for lote in lotes:
+            lotes_data.append({
+                'id': lote.id,
+                'numero_lote': lote.numero_lote,
+                'cantidad_actual': lote.cantidad_actual,
+                'fecha_vencimiento': lote.fecha_vencimiento.strftime('%d/%m/%Y'),
+                'esta_vencido': lote.esta_vencido
+            })
+        
+        return JsonResponse({
+            'lotes': lotes_data,
+            'stock_total': producto.stock_actual
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

@@ -1,13 +1,142 @@
 {# /templates/movimientos/formulario_movimiento.html #}
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
-{% block title %}Nuevo Movimiento{% endblock %}
+{% load static %}
+{% block title %}Crear Movimiento{% endblock %}
 {% block content %}
-<h2>Registrar Movimiento</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form|crispy }}
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a href="{% url 'lista_movimientos' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+<div class="container">
+    <h2>Crear Movimiento de Inventario</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post" id="movimiento-form">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.producto.id_for_label }}" class="form-label">Producto:</label>
+                            {{ form.producto }}
+                            {% if form.producto.errors %}
+                                <div class="text-danger">{{ form.producto.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.lote.id_for_label }}" class="form-label">Lote:</label>
+                            {{ form.lote }}
+                            {% if form.lote.errors %}
+                                <div class="text-danger">{{ form.lote.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Opcional: Selecciona un lote específico</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.tipo.id_for_label }}" class="form-label">Tipo de Movimiento:</label>
+                            {{ form.tipo }}
+                            {% if form.tipo.errors %}
+                                <div class="text-danger">{{ form.tipo.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.cantidad.id_for_label }}" class="form-label">Cantidad:</label>
+                            {{ form.cantidad }}
+                            {% if form.cantidad.errors %}
+                                <div class="text-danger">{{ form.cantidad.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Stock Disponible:</label>
+                            <div id="stock-info" class="form-control-plaintext">
+                                <span class="text-muted">Selecciona un producto</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones:</label>
+                    {{ form.observaciones }}
+                    {% if form.observaciones.errors %}
+                        <div class="text-danger">{{ form.observaciones.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Crear Movimiento</button>
+                    <a href="{% url 'lista_movimientos' %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productoSelect = document.getElementById('{{ form.producto.id_for_label }}');
+    const loteSelect = document.getElementById('{{ form.lote.id_for_label }}');
+    const stockInfo = document.getElementById('stock-info');
+    
+    // Update lotes when product changes
+    productoSelect.addEventListener('change', function() {
+        const productoId = this.value;
+        
+        if (productoId) {
+            // Fetch lotes for this product
+            fetch(`/api/productos/${productoId}/lotes/`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear existing options
+                    loteSelect.innerHTML = '<option value="">Seleccionar lote (opcional)</option>';
+                    
+                    // Add new options
+                    data.lotes.forEach(lote => {
+                        const option = document.createElement('option');
+                        option.value = lote.id;
+                        option.textContent = `${lote.numero_lote} (${lote.cantidad_actual} disponibles)`;
+                        loteSelect.appendChild(option);
+                    });
+                    
+                    // Update stock info
+                    stockInfo.innerHTML = `
+                        <strong>Stock Total:</strong> ${data.stock_total}<br>
+                        <strong>Lotes Activos:</strong> ${data.lotes.length}
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    stockInfo.innerHTML = '<span class="text-danger">Error al cargar información</span>';
+                });
+        } else {
+            loteSelect.innerHTML = '<option value="">Seleccionar lote (opcional)</option>';
+            stockInfo.innerHTML = '<span class="text-muted">Selecciona un producto</span>';
+        }
+    });
+    
+    // Update stock info when lote changes
+    loteSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            const stockMatch = selectedOption.textContent.match(/\((\d+) disponibles\)/);
+            if (stockMatch) {
+                stockInfo.innerHTML += `<br><strong>Stock en Lote:</strong> ${stockMatch[1]}`;
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
