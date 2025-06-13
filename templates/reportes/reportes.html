@@ -1,15 +1,83 @@
-{# /templates/reportes/reportes.html #}
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Reportes de Inventario{% endblock %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<h2>Reportes disponibles</h2>
-<ul class="list-group">
-    {% for reporte in reportes %}
-    <li class="list-group-item">
-        <a href="{{ reporte.archivo_pdf.url }}" target="_blank">{{ reporte.nombre }}</a> - {{ reporte.fecha_generacion|date:"d/m/Y" }}
-    </li>
-    {% empty %}
-    <li class="list-group-item">No hay reportes generados.</li>
-    {% endfor %}
-</ul>
+<div class="container my-5">
+  <h2 class="mb-4 text-primary fw-bold">📊 Panel de Reportes de Inventario</h2>
+
+  <!-- Tabla de movimientos -->
+  <div class="card shadow-sm mb-5 border-0">
+    <div class="card-header bg-secondary text-white fw-semibold">📋 Tabla de Movimientos</div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="tablaMovimientos" class="display table table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mov in movimientos %}
+            <tr>
+              <td>{{ mov.producto.nombre }}</td>
+              <td>{{ mov.get_tipo_display }}</td>
+              <td>{{ mov.cantidad }}</td>
+              <td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de exportación -->
+  <div class="d-flex justify-content-end mb-4">
+    <a href="{% url 'inventario:exportar_csv' %}" class="btn btn-outline-primary me-2">
+      📥 Exportar CSV
+    </a>
+    <a href="{% url 'inventario:exportar_pdf' %}" class="btn btn-outline-danger">
+      📄 Ver/Exportar PDF
+    </a>
+  </div>
+
+  <!-- Reportes generados -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white fw-semibold">📁 Reportes Generados</div>
+    <ul class="list-group list-group-flush">
+      {% for reporte in reportes %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>📎 {{ reporte.nombre }}</span>
+        <span class="badge bg-light text-dark">{{ reporte.fecha_generacion|date:"d/m/Y" }}</span>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">No hay reportes generados.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block extrascripts %}
+<script>
+  $(document).ready(function () {
+    $('#tablaMovimientos').DataTable({
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+      },
+      pageLength: 10,
+      lengthChange: false
+    });
+  });
+</script>
 {% endblock %}

@@ -2,6 +2,8 @@
 
 from datetime import datetime
 from django.db import models
+from django.utils import timezone
+from django.conf import settings
 
 class Producto(models.Model):
     """Modelo que representa un producto individual del inventario."""
@@ -20,6 +22,103 @@ class Producto(models.Model):
         """Retorna una representación legible del producto."""
         return f"{self.nombre} ({self.numero_serie})"
 
+    @property
+    def is_blocked(self):
+        """Check if the product is currently blocked."""
+        return AuditoriaInventario.objects.filter(
+            producto=self, 
+            bloqueado=True
+        ).exists()
+    
+    def get_active_block(self):
+        """Return the active block for this product, if any."""
+        return AuditoriaInventario.objects.filter(
+            producto=self, 
+            bloqueado=True
+        ).first()
+
+
+class LoteProducto(models.Model):
+    """Modelo que representa un lote específico de un producto."""
+    
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes')
+    numero_lote = models.CharField(max_length=50, unique=True)
+    fecha_vencimiento = models.DateField()
+    fecha_ingreso = models.DateTimeField(auto_now_add=True)
+    cantidad_inicial = models.PositiveIntegerField()
+    cantidad_actual = models.PositiveIntegerField()
+    activo = models.BooleanField(default=True)
+    observaciones = models.TextField(blank=True)
+    
+    class Meta:
+        unique_together = ['producto', 'numero_lote']
+        ordering = ['fecha_vencimiento']
+    
+    def __str__(self):
+        return f"{self.producto.nombre} - Lote: {self.numero_lote}"
+    
+    @property
+    def esta_vencido(self):
+        """Verifica si el lote está vencido."""
+        from django.utils import timezone
+        return self.fecha_vencimiento < timezone.now().date()
+    
+    @property
+    def dias_hasta_vencimiento(self):
+        """Calcula los días hasta el vencimiento."""
+        from django.utils import timezone
+        delta = self.fecha_vencimiento - timezone.now().date()
+        return delta.days
+    
+    @property
+    def porcentaje_usado(self):
+        """Calcula el porcentaje usado del lote."""
+        if self.cantidad_inicial == 0:
+            return 0
+        return ((self.cantidad_inicial - self.cantidad_actual) / self.cantidad_inicial) * 100
+
+
+class HistorialLote(models.Model):
+    """Historial de cambios en los lotes."""
+    
+    TIPO_CAMBIO = [
+        ('creacion', 'Creación de lote'),
+        ('uso', 'Uso de lote'),
+        ('devolucion', 'Devolución al lote'),
+        ('vencimiento', 'Marcado como vencido'),
+        ('eliminacion', 'Eliminación de lote'),
+    ]
+    
+    lote = models.ForeignKey(LoteProducto, on_delete=models.CASCADE, related_name='historial')
+    tipo_cambio = models.CharField(max_length=20, choices=TIPO_CAMBIO)
+    cantidad_anterior = models.PositiveIntegerField()
+    cantidad_nueva = models.PositiveIntegerField()
+    fecha_cambio = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    observaciones = models.TextField(blank=True)
+    
+    @property
+    def diferencia(self):
+        """Calcula la diferencia entre cantidad nueva y anterior."""
+        return self.cantidad_nueva - self.cantidad_anterior
+    
+    @property
+    def tipo_diferencia(self):
+        """Retorna el tipo de diferencia: positiva, negativa o neutra."""
+        diff = self.diferencia
+        if diff > 0:
+            return 'positiva'
+        elif diff < 0:
+            return 'negativa'
+        else:
+            return 'neutra'
+    
+    def __str__(self):
+        return f"{self.lote.numero_lote} - {self.get_tipo_cambio_display()}"
+    
+    class Meta:
+        ordering = ['-fecha_cambio']
+
 
 class MovimientoInventario(models.Model):
     """Modelo que representa un movimiento de inventario (entrada, salida, etc.)."""
@@ -32,28 +131,145 @@ class MovimientoInventario(models.Model):
     ]
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    lote = models.ForeignKey(LoteProducto, on_delete=models.SET_NULL, null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     cantidad = models.IntegerField()
     fecha = models.DateTimeField(auto_now_add=True)
-    usuario = models.ForeignKey('usuarios.Usuario', on_delete=models.SET_NULL, null=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     observaciones = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        # Save the movement first
+        super().save(*args, **kwargs)
+        
+        # Update batch quantity if batch is specified
+        if self.lote:
+            self.actualizar_cantidad_lote()
+        
+        # Update product stock
+        self.actualizar_stock_producto()
+    
+    def actualizar_cantidad_lote(self):
+        """Update the batch quantity based on the movement."""
+        if not self.lote:
+            return
+            
+        if self.tipo == 'entrada' or self.tipo == 'devolucion':
+            self.lote.cantidad_actual += self.cantidad
+        elif self.tipo == 'salida':
+            self.lote.cantidad_actual -= self.cantidad
+        elif self.tipo == 'ajuste':
+            # For adjustments, the quantity represents the new total
+            cantidad_anterior = self.lote.cantidad_actual
+            self.lote.cantidad_actual = self.cantidad
+            
+        # Ensure quantity doesn't go below 0
+        if self.lote.cantidad_actual < 0:
+            self.lote.cantidad_actual = 0
+            
+        self.lote.save()
+        
+        # Create history record
+        HistorialLote.objects.create(
+            lote=self.lote,
+            tipo_cambio='uso' if self.tipo == 'salida' else 'devolucion' if self.tipo == 'devolucion' else 'uso',
+            cantidad_anterior=self.lote.cantidad_actual - (self.cantidad if self.tipo == 'entrada' else -self.cantidad),
+            cantidad_nueva=self.lote.cantidad_actual,
+            usuario=self.usuario,
+            observaciones=f'Movimiento {self.tipo}: {self.cantidad} unidades'
+        )
+    
+    def actualizar_stock_producto(self):
+        """Update the product stock based on the movement."""
+        if self.tipo == 'entrada' or self.tipo == 'devolucion':
+            self.producto.stock_actual += self.cantidad
+        elif self.tipo == 'salida':
+            self.producto.stock_actual -= self.cantidad
+        elif self.tipo == 'ajuste':
+            # For adjustments, recalculate total stock from all batches
+            total_lotes = LoteProducto.objects.filter(
+                producto=self.producto, 
+                activo=True
+            ).aggregate(total=models.Sum('cantidad_actual'))['total'] or 0
+            self.producto.stock_actual = total_lotes
+            
+        # Ensure stock doesn't go below 0
+        if self.producto.stock_actual < 0:
+            self.producto.stock_actual = 0
+            
+        self.producto.save()
 
     def __str__(self):
         """Retorna una representación del movimiento realizado."""
-        return f"{self.tipo} - {self.producto} ({self.cantidad})"
+        lote_info = f" (Lote: {self.lote.numero_lote})" if self.lote else ""
+        return f"{self.tipo} - {self.producto}{lote_info} ({self.cantidad})"
 
 
 class Proveedor(models.Model):
-    """Modelo que representa un proveedor externo."""
+    """Modelo para gestionar proveedores."""
 
     nombre = models.CharField(max_length=100)
-    contacto = models.CharField(max_length=100)
+    contacto = models.CharField(max_length=100, blank=True)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20)
+    direccion = models.TextField(blank=True)
+    contacto_principal = models.CharField(max_length=100, blank=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
-        """Retorna el nombre del proveedor."""
-        return str(self.nombre)
+        return self.nombre
+
+    def get_calificacion_promedio(self):
+        """Calcula la calificación promedio del proveedor."""
+        evaluaciones = self.evaluaciones.all()
+        if evaluaciones:
+            return sum(e.calificacion for e in evaluaciones) / len(evaluaciones)
+        return 0
+
+    def get_total_compras(self):
+        """Obtiene el total de compras realizadas a este proveedor."""
+        return self.compras.count()
+
+
+class CompraProveedor(models.Model):
+    """Modelo para registrar compras a proveedores."""
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='compras')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_compra = models.DateTimeField(auto_now_add=True)
+    numero_factura = models.CharField(max_length=50, blank=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    @property
+    def total(self):
+        return self.cantidad * self.precio_unitario
+
+    def __str__(self):
+        return f"Compra a {self.proveedor.nombre} - {self.producto.nombre}"
+
+
+class EvaluacionProveedor(models.Model):
+    """Modelo para evaluar y calificar proveedores."""
+
+    CALIFICACIONES = [
+        (1, 'Muy Malo'),
+        (2, 'Malo'),
+        (3, 'Regular'),
+        (4, 'Bueno'),
+        (5, 'Excelente'),
+    ]
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='evaluaciones')
+    calificacion = models.IntegerField(choices=CALIFICACIONES)
+    comentario = models.TextField()
+    fecha_evaluacion = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"Evaluación de {self.proveedor.nombre} - {self.get_calificacion_display()}"
 
 
 class KitProducto(models.Model):
@@ -104,8 +320,8 @@ class AlertaStock(models.Model):
     atendido = models.BooleanField(default=False)
 
     def __str__(self):
-        """Muestra si la alerta fue atendida o sigue pendiente."""
-        return f"Alerta - {self.producto} ({'Resuelta' if self.atendido else 'Pendiente'})"
+
+        return f"Alerta: {self.producto.nombre} - {self.fecha_alerta}"
 
 
 class AuditoriaInventario(models.Model):
@@ -113,18 +329,20 @@ class AuditoriaInventario(models.Model):
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
-    bloqueado = models.BooleanField(default=True)
+    fecha_fin = models.DateTimeField(null=True, blank=True)  # This field is missing in the database
+    bloqueado = models.BooleanField(default=False)
     motivo = models.TextField(blank=True)
-    usuario_auditor = models.ForeignKey('usuarios.Usuario', on_delete=models.SET_NULL, null=True)
-
+    usuario_auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    
     def finalizar(self):
-        """Finaliza la auditoría y desbloquea el producto."""
+        """Mark the block as finished by setting an end date."""
+        self.fecha_fin = timezone.now()
         self.bloqueado = False
         self.save()
-
+        
     def __str__(self):
-        """Muestra el estado actual de la auditoría del producto."""
-        return f"Auditoría: {self.producto} - {'Bloqueado' if self.bloqueado else 'Finalizado'}"
+        status = "Bloqueado" if self.bloqueado else "Desbloqueado"
+        return f"{self.producto.nombre} - {status} - {self.fecha_inicio}"
 
 
 class Proyecto(models.Model):

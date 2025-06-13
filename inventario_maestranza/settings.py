@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     # Terceros
     'crispy_forms',
     'crispy_bootstrap5',
+
 ]
 
 MIDDLEWARE = [
@@ -120,4 +121,17 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Modelo de usuario personalizado
+
 AUTH_USER_MODEL = 'usuarios.Usuario'
+LOGIN_URL = 'usuarios:login'
+LOGIN_REDIRECT_URL = 'usuarios:home'
+LOGOUT_REDIRECT_URL = 'usuarios:login'
+# Email Configuration for Stock Alerts
+# For Gmail (most common)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'maestranza758@gmail.com'
+EMAIL_HOST_PASSWORD = 'rfdq weec kkcv woyi'  # Use Gmail app password
+DEFAULT_FROM_EMAIL = 'Sistema Inventario <maestranza758@gmail.com>'

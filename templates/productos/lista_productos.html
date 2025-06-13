@@ -1,29 +1,195 @@
-{# templates/productos/lista_productos.html #}
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Listado de Productos{% endblock %}
+
 {% block content %}
-<h2>Listado de Productos</h2>
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th>Nombre</th>
-            <th>N° Serie</th>
-            <th>Ubicación</th>
-            <th>Categoría</th>
-            <th>Stock Actual</th>
-        </tr>
+<h2 class="mb-4">Listado de Productos</h2>
+
+<!-- FILTRO -->
+<form method="get" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label for="nombre" class="form-label">Nombre</label>
+      <input type="text" name="nombre" id="nombre" class="form-control" value="{{ request.GET.nombre }}">
+    </div>
+    <div class="col-md-4">
+      <label for="ubicacion" class="form-label">Ubicación</label>
+      <input type="text" name="ubicacion" id="ubicacion" class="form-control" value="{{ request.GET.ubicacion }}">
+    </div>
+    <div class="col-md-3">
+      <label for="categoria" class="form-label">Categoría</label>
+      <select name="categoria" id="categoria" class="form-select">
+        <option value="">Todas</option>
+        {% for c in categorias %}
+        <option value="{{ c }}" {% if request.GET.categoria == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+    </div>
+  </div>
+</form>
+
+<!-- BUSCADOR -->
+<input type="text" id="buscar" class="form-control mb-3" placeholder="Buscar producto...">
+
+<!-- TABLA -->
+<div class="table-responsive">
+  <table class="table table-bordered table-striped table-hover" id="tabla-productos">
+    <thead class="table-dark">
+      <tr>
+        <th>Nombre</th>
+        <th>N° Serie</th>
+        <th>Ubicación</th>
+        <th>Categoría</th>
+        <th>Stock Actual</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
     </thead>
     <tbody>
-        {% for producto in productos %}
-        <tr>
-            <td>{{ producto.nombre }}</td>
-            <td>{{ producto.numero_serie }}</td>
-            <td>{{ producto.ubicacion }}</td>
-            <td>{{ producto.categoria }}</td>
-            <td>{{ producto.stock_actual }}</td>
-        </tr>
-        {% endfor %}
+      {% for producto in page_obj %}
+      <tr class="{% if producto.is_blocked %}table-danger{% endif %}">
+        <td>{{ producto.nombre }}</td>
+        <td>{{ producto.numero_serie }}</td>
+        <td>{{ producto.ubicacion }}</td>
+        <td>{{ producto.categoria }}</td>
+        <td>{{ producto.stock_actual }}</td>
+        <td>
+          {% if producto.is_blocked %}
+            <span class="badge bg-danger">Bloqueado</span>
+          {% elif producto.stock_actual == 0 %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle-fill"></i> Sin stock</span>
+          {% elif producto.stock_actual < producto.stock_minimo %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Bajo</span>
+          {% else %}
+            <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Suficiente</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'inventario:editar_producto' producto.id %}" class="btn btn-sm btn-primary">Editar</a>
+          <a href="{% url 'inventario:detalle_producto_lotes' producto.id %}" class="btn btn-sm btn-info">Lotes</a>
+          <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalConfirmarEliminar" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}">Eliminar</a>
+          <button class="btn btn-sm {% if producto.is_blocked %}btn-success{% else %}btn-warning{% endif %} btn-toggle-block" data-producto-id="{{ producto.id }}" data-action="{% if producto.is_blocked %}unblock{% else %}block{% endif %}" data-bs-toggle="modal" data-bs-target="#blockModal">
+            {% if producto.is_blocked %}<i class="bi bi-unlock"></i> Desbloquear{% else %}<i class="bi bi-lock"></i> Bloquear{% endif %}
+          </button>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center py-4">
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> No se encontraron productos.
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
     </tbody>
-</table>
-<a href="{% url 'crear_producto' %}" class="btn btn-success">Agregar nuevo producto</a>
+  </table>
+</div>
+
+<!-- PAGINACIÓN -->
+<nav aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+      {% else %}
+      <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a></li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+    {% endif %}
+  </ul>
+</nav>
+
+<!-- ACCIONES -->
+<div class="d-flex gap-2">
+  <a href="{% url 'inventario:crear_producto' %}" class="btn btn-success">
+    <i class="bi bi-plus-circle-fill"></i> Agregar nuevo producto
+  </a>
+  <a href="{% url 'inventario:historial_bloqueos' %}" class="btn btn-outline-info">
+    <i class="bi bi-clock-history"></i> Ver historial de bloqueos
+  </a>
+</div>
+
+<!-- MODALES -->
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="modalEliminarLabel">Confirmar Eliminación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        ¿Estás seguro de que deseas eliminar el producto <strong id="productoAEliminar"></strong>?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <a href="#" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="blockModal" tabindex="-1" aria-labelledby="blockModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="blockModalLabel">Bloquear Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="blockForm" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3" id="motivoGroup">
+            <label for="motivo" class="form-label">Motivo del bloqueo:</label>
+            <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
+          </div>
+          <div class="alert alert-warning" id="unblockWarning" style="display:none;">
+            ¿Está seguro que desea desbloquear este producto?
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("buscar").addEventListener("keyup", function () {
+    const filtro = this.value.toLowerCase();
+    document.querySelectorAll("#tabla-productos tbody tr").forEach(function (fila) {
+      const texto = fila.textContent.toLowerCase();
+      fila.style.display = texto.includes(filtro) ? "" : "none";
+    });
+  });
+
+  const modalEliminar = document.getElementById('modalConfirmarEliminar');
+  modalEliminar.addEventListener('show.bs.modal', function (event) {
+    const boton = event.relatedTarget;
+    const productoId = boton.getAttribute('data-id');
+    const productoNombre = boton.getAttribute('data-nombre');
+    modalEliminar.querySelector('#productoAEliminar').textContent = productoNombre;
+    modalEliminar.querySelector('#btnConfirmarEliminar').href = `/inventario/productos/eliminar/${productoId}/`;
+  });
+</script>
+<script src="{% static 'js/blockproduct.js' %}"></script>
 {% endblock %}

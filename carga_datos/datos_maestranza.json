@@ -6,7 +6,11 @@
             "nombre": "Proveedora Minera del Norte",
             "contacto": "Carlos Araya",
             "correo": "caraya@proveedornorte.cl",
-            "telefono": "522345678"
+            "telefono": "522345678",
+            "direccion": "",
+            "contacto_principal": "Carlos Araya",
+            "fecha_registro": "2024-01-01T00:00:00Z",
+            "activo": true
         }
     },
     {
@@ -16,7 +20,11 @@
             "nombre": "Industrial Parts Ltda.",
             "contacto": "María Rojas",
             "correo": "mrojas@ipartsltda.cl",
-            "telefono": "522349871"
+            "telefono": "522349871",
+            "direccion": "",
+            "contacto_principal": "María Rojas",
+            "fecha_registro": "2024-01-02T00:00:00Z",
+            "activo": true
         }
     },
     {
@@ -26,7 +34,11 @@
             "nombre": "Tecnomin Repuestos",
             "contacto": "Jorge Pérez",
             "correo": "jperez@tecnomin.cl",
-            "telefono": "522341122"
+            "telefono": "522341122",
+            "direccion": "",
+            "contacto_principal": "Jorge Pérez",
+            "fecha_registro": "2024-01-03T00:00:00Z",
+            "activo": true
         }
     },
     {

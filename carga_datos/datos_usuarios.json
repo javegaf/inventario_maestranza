@@ -4,10 +4,14 @@
         "pk": 1,
         "fields": {
             "username": "admin_maestranza",
-            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
             "is_superuser": true,
             "is_staff": true,
-            "is_active": true
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00"
         }
     },
     {
@@ -15,10 +19,14 @@
         "pk": 2,
         "fields": {
             "username": "auditor_logistico",
-            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
             "is_superuser": false,
             "is_staff": true,
-            "is_active": true
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00"
         }
     },
     {
@@ -26,10 +34,14 @@
         "pk": 3,
         "fields": {
             "username": "operador_bodega",
-            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=", 
+            "password": "pbkdf2_sha256$600000$6NgZyR2RoDGxTkM9XNQmW3$zmnR+gSl+CBEXqKi+VGBl3Zkk2vmWywUkRu3l1CRoN4=",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
             "is_superuser": false,
             "is_staff": false,
-            "is_active": true
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00"
         }
     }
 ]

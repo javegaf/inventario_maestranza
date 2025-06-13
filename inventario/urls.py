@@ -1,21 +1,30 @@
-"""
-Definiciones de rutas URL para la app de inventario.
-Este archivo incluye las rutas asociadas a productos, movimientos de inventario,
-proveedores, alertas, kits, reportes e historial de precios.
-"""
+"""Definición de rutas URL para la app de inventario."""
 
 from django.urls import path
 from . import views
 
+app_name = "inventario"  # pylint: disable=invalid-name
+
 urlpatterns = [
     path('productos/', views.lista_productos, name='listar_productos'),
-    path('productos/nuevo/', views.crear_producto, name='crear_producto'),
+    path('productos/crear/', views.crear_producto, name='crear_producto'),
+    path('productos/editar/<int:producto_id>/', views.editar_producto, name='editar_producto'),
+    path('productos/eliminar/<int:producto_id>/',
+         views.eliminar_producto, name='eliminar_producto'),
+    path('productos/<int:producto_id>/toggle-block/',
+         views.toggle_block_product, name='toggle_block_product'),
+    path('productos/historial-bloqueos/', views.historial_bloqueos, name='historial_bloqueos'),
 
     path('movimientos/', views.lista_movimientos, name='lista_movimientos'),
     path('movimientos/nuevo/', views.crear_movimiento, name='crear_movimiento'),
 
     path('proveedores/', views.lista_proveedores, name='lista_proveedores'),
-    path('proveedores/nuevo/', views.crear_proveedor, name='crear_proveedor'),
+    path('proveedores/crear/', views.crear_proveedor, name='crear_proveedor'),
+    path('proveedores/<int:proveedor_id>/editar/', views.editar_proveedor, name='editar_proveedor'),
+    path('proveedores/<int:proveedor_id>/', views.detalle_proveedor, name='detalle_proveedor'),
+    path('proveedores/<int:proveedor_id>/compra/', views.registrar_compra, name='registrar_compra'),
+    path('proveedores/<int:proveedor_id>/evaluar/',
+         views.evaluar_proveedor, name='evaluar_proveedor'),
 
     path('alertas/', views.alertas_stock, name='alertas_stock'),
 
@@ -23,5 +32,18 @@ urlpatterns = [
     path('kits/nuevo/', views.crear_kit, name='crear_kit'),
 
     path('reportes/', views.reportes, name='reportes'),
+    path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),
+    path('reportes/exportar/pdf/', views.exportar_pdf, name='exportar_pdf'),
+
     path('precios/', views.historial_precios, name='historial_precios'),
+
+    path('dashboard/', views.dashboard_inventario, name='dashboard'),
+
+    path('productos/<int:producto_id>/lotes/', views.detalle_producto_lotes, name='detalle_producto_lotes'),
+    path('productos/<int:producto_id>/lotes/crear/', views.crear_lote, name='crear_lote'),
+    path('lotes/<int:lote_id>/editar/', views.editar_lote, name='editar_lote'),
+    path('lotes/historial/', views.historial_lotes, name='historial_lotes'),
+    path('lotes/<int:lote_id>/historial/', views.historial_lotes, name='historial_lote_individual'),
+
+    path('api/productos/<int:producto_id>/lotes/', views.api_producto_lotes, name='api_producto_lotes'),
 ]

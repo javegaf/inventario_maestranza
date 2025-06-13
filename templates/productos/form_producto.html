@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Editar Producto{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2>Editar Producto</h2>
+  <form method="post" id="form-editar-producto">
+    {% csrf_token %}
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" class="form-control bg-light text-dark" value="{{ form.nombre.value }}" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">N° Serie</label>
+          <input type="text" class="form-control bg-light text-dark" value="{{ form.numero_serie.value }}" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Categoría</label>
+          <input type="text" class="form-control bg-light text-dark" value="{{ form.categoria.value }}" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Fecha de Vencimiento Actual</label>
+          <input type="text" class="form-control bg-light text-dark" value="{{ form.fecha_vencimiento.value }}" readonly>
+          {{ form.fecha_vencimiento|as_crispy_field }}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="mb-3">{{ form.proveedor|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.descripcion|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.ubicacion|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.stock_actual|as_crispy_field }}</div>
+        <div class="mb-3">{{ form.stock_minimo|as_crispy_field }}</div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmarModal">
+        Guardar Cambios
+      </button>
+      <a href="{% url 'inventario:listar_productos' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<div class="modal fade" id="confirmarModal" tabindex="-1" aria-labelledby="confirmarModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmarModalLabel">Confirmar Guardado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">¿Estás seguro de que deseas guardar los cambios de este producto?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary" form="form-editar-producto">Sí, guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
