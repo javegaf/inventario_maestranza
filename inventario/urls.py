@@ -38,4 +38,12 @@ urlpatterns = [
     path('precios/', views.historial_precios, name='historial_precios'),
 
     path('dashboard/', views.dashboard_inventario, name='dashboard'),
+
+    path('productos/<int:producto_id>/lotes/', views.detalle_producto_lotes, name='detalle_producto_lotes'),
+    path('productos/<int:producto_id>/lotes/crear/', views.crear_lote, name='crear_lote'),
+    path('lotes/<int:lote_id>/editar/', views.editar_lote, name='editar_lote'),
+    path('lotes/historial/', views.historial_lotes, name='historial_lotes'),
+    path('lotes/<int:lote_id>/historial/', views.historial_lotes, name='historial_lote_individual'),
+
+    path('api/productos/<int:producto_id>/lotes/', views.api_producto_lotes, name='api_producto_lotes'),
 ]

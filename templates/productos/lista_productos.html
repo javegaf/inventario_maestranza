@@ -6,7 +6,7 @@
 <h2 class="mb-4">Listado de Productos</h2>
 
 <!-- FILTRO -->
-<form method="get" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4" style="max-width:100%;height:auto;">
+<form method="get" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4">
   <div class="row g-3 align-items-end">
     <div class="col-md-4">
       <label for="nombre" class="form-label">Nombre</label>
@@ -69,6 +69,7 @@
         </td>
         <td>
           <a href="{% url 'inventario:editar_producto' producto.id %}" class="btn btn-sm btn-primary">Editar</a>
+          <a href="{% url 'inventario:detalle_producto_lotes' producto.id %}" class="btn btn-sm btn-info">Lotes</a>
           <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalConfirmarEliminar" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}">Eliminar</a>
           <button class="btn btn-sm {% if producto.is_blocked %}btn-success{% else %}btn-warning{% endif %} btn-toggle-block" data-producto-id="{{ producto.id }}" data-action="{% if producto.is_blocked %}unblock{% else %}block{% endif %}" data-bs-toggle="modal" data-bs-target="#blockModal">
             {% if producto.is_blocked %}<i class="bi bi-unlock"></i> Desbloquear{% else %}<i class="bi bi-lock"></i> Bloquear{% endif %}
@@ -77,7 +78,11 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="7">No se encontraron productos.</td>
+        <td colspan="7" class="text-center py-4">
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> No se encontraron productos.
+          </div>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
