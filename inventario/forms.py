@@ -6,11 +6,13 @@ productos, movimientos de inventario, proveedores y kits de productos.
 
 from django.utils import timezone
 from django import forms
+from django.contrib.auth import get_user_model
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote
 )
 
+User = get_user_model()
 
 class ProductoForm(forms.ModelForm):
     """Formulario para crear o actualizar un producto del inventario."""
@@ -135,8 +137,16 @@ class MovimientoInventarioForm(forms.ModelForm):
 
 
 class MovimientoFiltroForm(forms.Form):
-    """Formulario para filtrar movimientos por fecha, tipo y producto."""
-
+    """Formulario para filtrar movimientos de inventario."""
+    
+    TIPO_CHOICES = [
+        ('', 'Todos los tipos'),
+        ('entrada', 'Entrada'),
+        ('salida', 'Salida'),
+        ('ajuste', 'Ajuste'),
+        ('devolucion', 'Devolución'),
+    ]
+    
     fecha_inicio = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
@@ -146,7 +156,7 @@ class MovimientoFiltroForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
     tipo_movimiento = forms.ChoiceField(
-        choices=[('', 'Todos')] + MovimientoInventario.TIPO_CHOICES,
+        choices=TIPO_CHOICES,
         required=False,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
@@ -156,6 +166,21 @@ class MovimientoFiltroForm(forms.Form):
         empty_label="Todos los productos",
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+    usuario = forms.ModelChoiceField(
+        queryset=User.objects.filter(is_active=True).order_by('username'),
+        required=False,
+        empty_label="Todos los usuarios",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show users who have created movements
+        users_with_movements = User.objects.filter(
+            movimientoinventario__isnull=False
+        ).distinct().order_by('username')
+        
+        self.fields['usuario'].queryset = users_with_movements
 
 
 class CompraProveedorForm(forms.ModelForm):

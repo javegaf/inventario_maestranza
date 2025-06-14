@@ -1,126 +1,210 @@
+{# /templates/movimientos/lista_movimientos.html #}
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Historial de movimientos{% endblock %}
-
 {% block content %}
+
+
 <div class="row mb-4">
-  <div class="col">
-    <h2><i class="bi bi-arrow-left-right"></i> Historial de movimientos</h2>
-  </div>
+    <div class="col">
+        <h2>Historial de movimientos</h2>
+    </div>
 </div>
 
 <div class="card mb-4">
-  <div class="card-header">
-    <h5 class="mb-0">Filtros</h5>
-  </div>
-  <div class="card-body">
-    <form method="get" class="row g-3">
-      <div class="col-md-3">
-        <label for="{{ filtro_form.fecha_inicio.id_for_label }}" class="form-label">Fecha inicio:</label>
-        {{ filtro_form.fecha_inicio }}
-      </div>
-      <div class="col-md-3">
-        <label for="{{ filtro_form.fecha_fin.id_for_label }}" class="form-label">Fecha fin:</label>
-        {{ filtro_form.fecha_fin }}
-      </div>
-      <div class="col-md-3">
-        <label for="{{ filtro_form.tipo_movimiento.id_for_label }}" class="form-label">Tipo de movimiento:</label>
-        {{ filtro_form.tipo_movimiento }}
-      </div>
-      <div class="col-md-3">
-        <label for="{{ filtro_form.producto.id_for_label }}" class="form-label">Producto:</label>
-        {{ filtro_form.producto }}
-      </div>
-      <div class="col-12 mt-3">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-funnel"></i> Filtrar
-        </button>
-        <a href="{% url 'inventario:lista_movimientos' %}" class="btn btn-secondary">
-          <i class="bi bi-x-circle"></i> Limpiar filtros
-        </a>
-      </div>
-    </form>
-  </div>
+    <div class="card-header">
+        <h5 class="mb-0">Filtros</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label for="{{ filtro_form.fecha_inicio.id_for_label }}" class="form-label">Fecha inicio:</label>
+                {{ filtro_form.fecha_inicio }}
+            </div>
+            <div class="col-md-2">
+                <label for="{{ filtro_form.fecha_fin.id_for_label }}" class="form-label">Fecha fin:</label>
+                {{ filtro_form.fecha_fin }}
+            </div>
+            <div class="col-md-2">
+                <label for="{{ filtro_form.tipo_movimiento.id_for_label }}" class="form-label">Tipo:</label>
+                {{ filtro_form.tipo_movimiento }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.producto.id_for_label }}" class="form-label">Producto:</label>
+                {{ filtro_form.producto }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.usuario.id_for_label }}" class="form-label">Usuario:</label>
+                {{ filtro_form.usuario }}
+            </div>
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <a href="/inventario/movimientos/" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar filtros
+                </a>
+                
+                <!-- Show active filters summary -->
+                {% if request.GET %}
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-funnel-fill"></i> Filtros activos:
+                        {% if filtro_form.fecha_inicio.value %}
+                            <span class="badge bg-light text-dark">Desde: {{ filtro_form.fecha_inicio.value }}</span>
+                        {% endif %}
+                        {% if filtro_form.fecha_fin.value %}
+                            <span class="badge bg-light text-dark">Hasta: {{ filtro_form.fecha_fin.value }}</span>
+                        {% endif %}
+                        {% if filtro_form.tipo_movimiento.value %}
+                            <span class="badge bg-light text-dark">Tipo: {{ filtro_form.tipo_movimiento.value|title }}</span>
+                        {% endif %}
+                        {% if filtro_form.producto.value %}
+                            <span class="badge bg-light text-dark">Producto: {{ filtro_form.producto.value }}</span>
+                        {% endif %}
+                        {% if filtro_form.usuario.value %}
+                            <span class="badge bg-light text-dark">Usuario: {{ filtro_form.usuario.value }}</span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">Resultados</h5>
-    <div class="d-flex align-items-center gap-2">
-      <span class="badge bg-primary">{{ movimientos.count }} movimientos</span>
-
-      {% if user.is_staff %}
-        <a href="{% url 'inventario:crear_movimiento' %}" class="btn btn-success btn-sm">
-          <i class="bi bi-plus-circle"></i> Crear movimiento
-        </a>
-      {% else %}
-        <button type="button" class="btn btn-secondary btn-sm" onclick="showPermissionDenied()" title="Solo personal autorizado puede crear movimientos">
-          <i class="bi bi-plus-circle"></i> Crear movimiento
-        </button>
-      {% endif %}
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Resultados</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary">{{ movimientos.count }} movimientos</span>
+            
+            <!-- Create Movement Button with Conditional Logic -->
+            {% if user.is_staff %}
+                <a href="/inventario/movimientos/nuevo/" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Crear movimiento
+                </a>
+            {% else %}
+                <!-- Button that triggers alert for non-staff users -->
+                <button type="button" class="btn btn-secondary btn-sm" onclick="showPermissionDenied()" title="Solo personal autorizado puede crear movimientos">
+                    <i class="bi bi-plus-circle"></i> Crear movimiento
+                </button>
+            {% endif %}
+        </div>
     </div>
-  </div>
-
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead class="table-dark">
-          <tr>
-            <th>Producto</th>
-            <th>Tipo</th>
-            <th>Cantidad</th>
-            <th>Fecha</th>
-            <th>Usuario</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for movimiento in movimientos %}
-          <tr class="{% if movimiento.tipo == 'entrada' %}table-success{% elif movimiento.tipo == 'salida' %}table-danger{% elif movimiento.tipo == 'ajuste' %}table-warning{% else %}table-info{% endif %}">
-            <td>{{ movimiento.producto }}</td>
-            <td>{{ movimiento.get_tipo_display }}</td>
-            <td>{{ movimiento.cantidad }}</td>
-            <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
-            <td>{{ movimiento.usuario }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" class="text-center">
-              <div class="alert alert-info mb-0">
-                <i class="bi bi-info-circle"></i> No se encontraron movimientos con los filtros aplicados.
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Lote</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                    <tr class="{% if movimiento.tipo == 'entrada' %}table-success{% elif movimiento.tipo == 'salida' %}table-danger{% elif movimiento.tipo == 'ajuste' %}table-warning{% else %}table-info{% endif %}">
+                        <td>
+                            <strong>{{ movimiento.producto.nombre }}</strong>
+                            <br><small class="text-muted">{{ movimiento.producto.categoria }}</small>
+                        </td>
+                        <td>
+                            {% if movimiento.lote %}
+                                <span class="badge bg-info">{{ movimiento.lote.numero_lote }}</span>
+                                <br><small class="text-muted">Vence: {{ movimiento.lote.fecha_vencimiento|date:"d/m/Y" }}</small>
+                            {% else %}
+                                <span class="text-muted">Sin lote</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if movimiento.tipo == 'entrada' %}bg-success
+                                {% elif movimiento.tipo == 'salida' %}bg-danger
+                                {% elif movimiento.tipo == 'ajuste' %}bg-warning
+                                {% else %}bg-info{% endif %}">
+                                {{ movimiento.get_tipo_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if movimiento.tipo == 'salida' %}
+                                <span class="text-danger fw-bold">-{{ movimiento.cantidad }}</span>
+                            {% elif movimiento.tipo == 'entrada' %}
+                                <span class="text-success fw-bold">+{{ movimiento.cantidad }}</span>
+                            {% else %}
+                                <span class="fw-bold">{{ movimiento.cantidad }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ movimiento.fecha|date:"d/m/Y" }}
+                            <br><small class="text-muted">{{ movimiento.fecha|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if movimiento.usuario %}
+                                <strong>{{ movimiento.usuario.username }}</strong>
+                                {% if movimiento.usuario.get_full_name %}
+                                    <br><small class="text-muted">{{ movimiento.usuario.get_full_name }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Sistema</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if movimiento.observaciones %}
+                                <span title="{{ movimiento.observaciones }}">
+                                    {{ movimiento.observaciones|truncatechars:30 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No se encontraron movimientos con los filtros aplicados.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-  </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
 <script src="{% static 'js/realtimetable.js' %}"></script>
 
+<!-- JavaScript for Permission Alert -->
 <script>
-// Función para usuarios no autorizados
 function showPermissionDenied() {
-  if (confirm('⚠️ ACCESO DENEGADO\n\nSolo el personal autorizado (staff) puede crear movimientos de inventario.\n\n¿Deseas contactar a un administrador?')) {
-    window.location.href = '{% url "inventario:lista_movimientos" %}?create_attempt=true';
-  }
+    // Show alert notification
+    if (confirm('⚠️ ACCESO DENEGADO\n\nSolo el personal autorizado (staff) puede crear movimientos de inventario.\n\n¿Deseas contactar a un administrador?')) {
+        // Log the attempt by redirecting with a parameter
+        window.location.href = '/inventario/movimientos/?create_attempt=true';
+    }
 }
 
-// Ocultar alertas luego de 8 segundos
+// Auto-hide alerts after 8 seconds
 document.addEventListener('DOMContentLoaded', function() {
-  const alerts = document.querySelectorAll('.alert');
-  alerts.forEach(function(alert) {
-    setTimeout(function() {
-      if (alert.classList.contains('show')) {
-        alert.classList.remove('show');
-        setTimeout(function() { alert.remove(); }, 150);
-      }
-    }, 8000);
-  });
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(function(alert) {
+        setTimeout(function() {
+            if (alert.classList.contains('show')) {
+                alert.classList.remove('show');
+                setTimeout(function() {
+                    alert.remove();
+                }, 150);
+            }
+        }, 8000);
+    });
 });
 </script>
+
 {% endblock %}
