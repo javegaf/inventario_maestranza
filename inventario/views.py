@@ -105,6 +105,8 @@ def lista_movimientos(request):
             movimientos = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
         if form.cleaned_data.get('producto'):
             movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
+        if form.cleaned_data.get('usuario'):
+            movimientos = movimientos.filter(usuario=form.cleaned_data['usuario'])    
 
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
@@ -126,7 +128,7 @@ def crear_movimiento(request):
                 movimiento.usuario = request.user
                 movimiento.save()  # This will trigger the save method that updates quantities
                 messages.success(request, 'Movimiento creado exitosamente.')
-                return redirect('lista_movimientos')
+                return redirect('/inventario/movimientos/') 
     else:
         form = MovimientoInventarioForm()
     
