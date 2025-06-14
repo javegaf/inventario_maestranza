@@ -247,6 +247,22 @@ class CompraProveedor(models.Model):
     def total(self):
         return self.cantidad * self.precio_unitario
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        # Save the purchase first
+        super().save(*args, **kwargs)
+        
+        # Create price history record automatically only for new purchases
+        if is_new:
+            HistorialPrecio.objects.create(
+                producto=self.producto,
+                precio_unitario=self.precio_unitario,
+                proveedor=self.proveedor,
+                compra=self,
+                usuario=self.usuario,
+                observaciones=f'Precio registrado por compra - Factura: {self.numero_factura or "Sin número"}'
+            )
+
     def __str__(self):
         return f"Compra a {self.proveedor.nombre} - {self.producto.nombre}"
 
@@ -290,9 +306,46 @@ class ProductoEnKit(models.Model):
 class HistorialPrecio(models.Model):
     """Registro histórico de precios unitarios por producto."""
 
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    fecha = models.DateField(auto_now_add=True)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios')
+    fecha = models.DateTimeField(auto_now_add=True)  # Changed to DateTimeField for better precision
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
+    compra = models.ForeignKey(CompraProveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)  # New field
+    observaciones = models.TextField(blank=True)  # New field
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name = 'Historial de Precio'
+        verbose_name_plural = 'Historial de Precios'
+    
+    def __str__(self):
+        return f"{self.producto.nombre} - ${self.precio_unitario} ({self.fecha.strftime('%d/%m/%Y')})"
+    
+    @property
+    def precio_anterior(self):
+        """Get the previous price for this product."""
+        precio_anterior = HistorialPrecio.objects.filter(
+            producto=self.producto,
+            fecha__lt=self.fecha
+        ).first()
+        return precio_anterior.precio_unitario if precio_anterior else None
+    
+    @property
+    def variacion_precio(self):
+        """Calculate price variation from previous price."""
+        anterior = self.precio_anterior
+        if anterior:
+            return self.precio_unitario - anterior
+        return None
+    
+    @property
+    def porcentaje_variacion(self):
+        """Calculate percentage variation from previous price."""
+        anterior = self.precio_anterior
+        if anterior and anterior > 0:
+            return ((self.precio_unitario - anterior) / anterior) * 100
+        return None
 
 
 class InformeInventario(models.Model):

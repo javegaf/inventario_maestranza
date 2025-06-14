@@ -5,7 +5,7 @@ movimientos, proveedores, kits, alertas, reportes y precios.
 
 import csv
 import datetime
-import logging
+import logging  # Add this import
 
 from io import BytesIO
 
@@ -31,7 +31,8 @@ from .models import (
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
     MovimientoFiltroForm, ProveedorForm, KitProductoForm,
-    CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm
+    CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
+    HistorialPrecioFiltroForm, RegistroPrecioManualForm  # Add these imports
 )
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ def crear_movimiento(request):
                 movimiento.usuario = request.user
                 movimiento.save()  # This will trigger the save method that updates quantities
                 messages.success(request, 'Movimiento creado exitosamente.')
-                return redirect('/inventario/movimientos/') 
+                return redirect('inventario:lista_movimientos')  # ← Updated with namespace
     else:
         form = MovimientoInventarioForm()
     
@@ -137,14 +138,36 @@ def crear_movimiento(request):
 # Proveedores
 
 def lista_proveedores(request):
-    proveedores = Proveedor.objects.filter(activo=True).annotate(total_compras=models.Count('compras'))
+    """Vista mejorada con información de precios."""
+    proveedores_base = Proveedor.objects.filter(activo=True).annotate(
+        total_compras=models.Count('compras')
+    )
+    
+    # Enhance with price information
+    proveedores = []
+    for proveedor in proveedores_base:
+        # Get price data from history
+        historial = HistorialPrecio.objects.filter(proveedor=proveedor)
+        
+        if historial.exists():
+            precio_promedio = historial.aggregate(avg=models.Avg('precio_unitario'))['avg']
+            productos_suministrados = historial.values('producto').distinct().count()
+        else:
+            precio_promedio = None
+            productos_suministrados = 0
+            
+        # Add the data to the provider
+        proveedor.precio_promedio = precio_promedio
+        proveedor.productos_suministrados = productos_suministrados
+        proveedores.append(proveedor)
+    
     return render(request, 'proveedores/lista_proveedores.html', {'proveedores': proveedores})
 
 def crear_proveedor(request):
     form = ProveedorForm(request.POST or None)
     if form.is_valid():
         form.save()
-        return redirect('lista_proveedores')
+        return redirect('inventario:lista_proveedores')  # Added namespace
     return render(request, 'proveedores/formulario_proveedor.html', {'form': form, 'action': 'Crear'})
 
 def editar_proveedor(request, proveedor_id):
@@ -152,17 +175,61 @@ def editar_proveedor(request, proveedor_id):
     form = ProveedorForm(request.POST or None, instance=proveedor)
     if form.is_valid():
         form.save()
-        return redirect('lista_proveedores')
+        return redirect('inventario:lista_proveedores')  # Added namespace
     return render(request, 'proveedores/formulario_proveedor.html', {
         'form': form, 'proveedor': proveedor, 'action': 'Editar'
     })
 
 def detalle_proveedor(request, proveedor_id):
+    """Vista mejorada con información de precios."""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
     compras = CompraProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_compra')
     evaluaciones = EvaluacionProveedor.objects.filter(proveedor=proveedor).order_by('-fecha_evaluacion')
+    
+    # Get price statistics
+    historial = HistorialPrecio.objects.filter(proveedor=proveedor)
+    precio_stats = None
+    ultimos_precios = {}
+    
+    if historial.exists():
+        # Overall price statistics
+        precio_stats = {
+            'precio_promedio_general': historial.aggregate(avg_precio=models.Avg('precio_unitario'))['avg_precio'] or 0,
+            'productos_suministrados': historial.values('producto').distinct().count(),
+            'total_transacciones': historial.count(),
+            'precio_minimo': historial.aggregate(min_precio=models.Min('precio_unitario'))['min_precio'] or 0,
+            'precio_maximo': historial.aggregate(max_precio=models.Max('precio_unitario'))['max_precio'] or 0,
+        }
+        
+        # Latest price for each product
+        productos = historial.values('producto').distinct()
+        for producto_info in productos:
+            producto_id = producto_info['producto']
+            producto = Producto.objects.get(id=producto_id)
+            precios_producto = historial.filter(producto=producto).order_by('-fecha')
+            
+            if precios_producto.count() >= 1:
+                ultimo_precio = precios_producto.first()
+                variacion = 0
+                
+                # Calculate price variation if we have at least 2 prices
+                if precios_producto.count() >= 2:
+                    precio_anterior = precios_producto[1].precio_unitario
+                    if precio_anterior > 0:
+                        variacion = ((ultimo_precio.precio_unitario - precio_anterior) / precio_anterior) * 100
+                
+                ultimos_precios[producto.nombre] = {
+                    'precio': ultimo_precio.precio_unitario,
+                    'fecha': ultimo_precio.fecha,
+                    'variacion': variacion
+                }
+    
     return render(request, 'proveedores/detalle_proveedor.html', {
-        'proveedor': proveedor, 'compras': compras, 'evaluaciones': evaluaciones
+        'proveedor': proveedor, 
+        'compras': compras, 
+        'evaluaciones': evaluaciones,
+        'precio_stats': precio_stats,
+        'ultimos_precios': ultimos_precios
     })
 
 @login_required
@@ -192,7 +259,7 @@ def evaluar_proveedor(request, proveedor_id):
         evaluacion.proveedor = proveedor
         evaluacion.usuario = request.user
         evaluacion.save()
-        return redirect('detalle_proveedor', proveedor_id=proveedor.id)
+        return redirect('inventario:detalle_proveedor', proveedor_id=proveedor.id)
     return render(request, 'proveedores/formulario_evaluacion.html', {'form': form, 'proveedor': proveedor})
 
 # Alertas
@@ -416,34 +483,341 @@ def exportar_pdf(request):
 # Historial
 
 def historial_precios(request):
-    historial = HistorialPrecio.objects.all()
-    return render(request, 'precios/historial_precios.html', {'historial': historial})
+    """Vista para mostrar el historial de precios con filtros."""
+    historial = HistorialPrecio.objects.select_related('producto', 'proveedor', 'usuario', 'compra').all()
+    form = HistorialPrecioFiltroForm(request.GET or None)
+    
+    if form.is_valid():
+        if form.cleaned_data.get('producto'):
+            historial = historial.filter(producto=form.cleaned_data['producto'])
+        if form.cleaned_data.get('proveedor'):
+            historial = historial.filter(proveedor=form.cleaned_data['proveedor'])
+        if form.cleaned_data.get('fecha_desde'):
+            historial = historial.filter(fecha__gte=form.cleaned_data['fecha_desde'])
+        if form.cleaned_data.get('fecha_hasta'):
+            fecha_hasta = form.cleaned_data['fecha_hasta']
+            # Add time to include the entire day
+            fecha_hasta = datetime.datetime.combine(fecha_hasta, datetime.time.max)
+            historial = historial.filter(fecha__lte=fecha_hasta)
+    
+    # Pagination
+    paginator = Paginator(historial, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Calculate statistics
+    stats = {
+        'total_registros': historial.count(),
+        'productos_unicos': historial.values('producto').distinct().count(),
+        'proveedores_unicos': historial.values('proveedor').distinct().count(),
+        'precio_promedio': historial.aggregate(avg_precio=models.Avg('precio_unitario'))['avg_precio'] or 0,
+    }
+    
+    return render(request, 'precios/historial_precios.html', {
+        'page_obj': page_obj,
+        'filtro_form': form,
+        'stats': stats
+    })
 
-def historial_bloqueos(request):
-    auditorias = AuditoriaInventario.objects.all().order_by('-fecha_inicio')
-    return render(request, 'productos/historial_bloqueos.html', {'auditorias': auditorias})
+def historial_precios_producto(request, producto_id):
+    """Vista para mostrar el historial de precios de un producto específico."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    historial = HistorialPrecio.objects.filter(producto=producto).select_related('proveedor', 'usuario', 'compra')
+    
+    # Calculate price evolution data for charts
+    precios_data = []
+    fechas_data = []
+    proveedores_data = []
+    colores_data = []
+    
+    colores_proveedores = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+    proveedores_unicos = {}
+    color_index = 0
+    
+    for precio in historial:
+        precios_data.append(float(precio.precio_unitario))
+        fechas_data.append(precio.fecha.strftime('%d/%m/%Y'))
+        proveedor_nombre = precio.proveedor.nombre if precio.proveedor else 'Sin proveedor'
+        proveedores_data.append(proveedor_nombre)
+        
+        # Assign colors to providers
+        if proveedor_nombre not in proveedores_unicos:
+            proveedores_unicos[proveedor_nombre] = colores_proveedores[color_index % len(colores_proveedores)]
+            color_index += 1
+        colores_data.append(proveedores_unicos[proveedor_nombre])
+    
+    # Get price statistics
+    if historial.exists():
+        precio_actual = historial.first().precio_unitario
+        precio_minimo = historial.aggregate(min_precio=models.Min('precio_unitario'))['min_precio']
+        precio_maximo = historial.aggregate(max_precio=models.Max('precio_unitario'))['max_precio']
+        precio_promedio = historial.aggregate(avg_precio=models.Avg('precio_unitario'))['avg_precio']
+        
+        # Calculate price trends
+        if historial.count() >= 2:
+            primer_precio = historial.last().precio_unitario
+            variacion_total = precio_actual - primer_precio
+            porcentaje_variacion = ((precio_actual - primer_precio) / primer_precio) * 100 if primer_precio > 0 else 0
+        else:
+            variacion_total = 0
+            porcentaje_variacion = 0
+    else:
+        precio_actual = precio_minimo = precio_maximo = precio_promedio = 0
+        variacion_total = porcentaje_variacion = 0
+    
+    stats = {
+        'precio_actual': precio_actual,
+        'precio_minimo': precio_minimo,
+        'precio_maximo': precio_maximo,
+        'precio_promedio': precio_promedio,
+        'total_cambios': historial.count(),
+        'variacion_total': variacion_total,
+        'porcentaje_variacion': porcentaje_variacion,
+        'tendencia': 'subida' if variacion_total > 0 else 'bajada' if variacion_total < 0 else 'estable'
+    }
+    
+    # Convert proveedores_unicos to a list of tuples for template iteration
+    proveedores_unicos_list = list(proveedores_unicos.items())
+    
+    return render(request, 'precios/historial_producto.html', {
+        'producto': producto,
+        'historial': historial,
+        'stats': stats,
+        'precios_data': precios_data,
+        'fechas_data': fechas_data,
+        'proveedores_data': proveedores_data,
+        'colores_data': colores_data,
+        'proveedores_unicos': proveedores_unicos_list,  # Changed to list of tuples
+    })
+
+def historial_precios_proveedor(request, proveedor_id):
+    """Vista para mostrar el historial de precios por proveedor."""
+    proveedor = get_object_or_404(Proveedor, id=proveedor_id)
+    historial = HistorialPrecio.objects.filter(proveedor=proveedor).select_related('producto', 'usuario', 'compra')
+    
+    # Group by product
+    productos_precios = {}
+    for precio in historial:
+        producto_nombre = precio.producto.nombre
+        if producto_nombre not in productos_precios:
+            productos_precios[producto_nombre] = {
+                'producto': precio.producto,
+                'precios': [],
+                'precio_actual': None,
+                'precio_anterior': None,
+                'precio_promedio': None,
+                'variacion': None,
+                'porcentaje_variacion': None
+            }
+        productos_precios[producto_nombre]['precios'].append(precio)
+    
+    # Calculate statistics for each product
+    for producto_data in productos_precios.values():
+        precios = producto_data['precios']
+        if precios:
+            producto_data['precio_actual'] = precios[0].precio_unitario  # Most recent
+            producto_data['precio_promedio'] = sum(p.precio_unitario for p in precios) / len(precios)
+            
+            if len(precios) >= 2:
+                producto_data['precio_anterior'] = precios[1].precio_unitario
+                producto_data['variacion'] = producto_data['precio_actual'] - producto_data['precio_anterior']
+                if producto_data['precio_anterior'] > 0:
+                    producto_data['porcentaje_variacion'] = (producto_data['variacion'] / producto_data['precio_anterior']) * 100
+    
+    # Calculate general statistics
+    if historial.exists():
+        precio_promedio_general = historial.aggregate(avg_precio=models.Avg('precio_unitario'))['avg_precio']
+        productos_suministrados = historial.values('producto').distinct().count()
+        precio_minimo = historial.aggregate(min_precio=models.Min('precio_unitario'))['min_precio']
+        precio_maximo = historial.aggregate(max_precio=models.Max('precio_unitario'))['max_precio']
+    else:
+        precio_promedio_general = productos_suministrados = precio_minimo = precio_maximo = 0
+    
+    stats = {
+        'precio_promedio_general': precio_promedio_general,
+        'productos_suministrados': productos_suministrados,
+        'total_transacciones': historial.count(),
+        'precio_minimo': precio_minimo,
+        'precio_maximo': precio_maximo,
+    }
+    
+    return render(request, 'precios/historial_proveedor.html', {
+        'proveedor': proveedor,
+        'productos_precios': productos_precios,
+        'historial': historial,
+        'stats': stats,
+    })
+
+def comparar_precios_proveedores(request):
+    """Vista para comparar precios entre proveedores."""
+    producto_id = request.GET.get('producto')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    
+    if producto_id:
+        producto = get_object_or_404(Producto, id=int(producto_id))
+        
+        # Get price history for this product
+        historial_query = HistorialPrecio.objects.filter(producto=producto).select_related('proveedor', 'usuario')
+        
+        # Apply date filters if provided
+        if fecha_desde:
+            historial_query = historial_query.filter(fecha__gte=fecha_desde)
+        if fecha_hasta:
+            fecha_hasta_dt = datetime.datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            fecha_hasta_dt = datetime.datetime.combine(fecha_hasta_dt.date(), datetime.time.max)
+            historial_query = historial_query.filter(fecha__lte=fecha_hasta_dt)
+        
+        # Get latest price from each provider for this product
+        precios_proveedores = []
+        proveedores = Proveedor.objects.filter(activo=True)
+        
+        for proveedor in proveedores:
+            ultimo_precio = historial_query.filter(proveedor=proveedor).first()
+            
+            if ultimo_precio:
+                # Calculate average price for this provider
+                precios_proveedor = historial_query.filter(proveedor=proveedor)
+                precio_promedio = precios_proveedor.aggregate(avg=models.Avg('precio_unitario'))['avg']
+                
+                precios_proveedores.append({
+                    'proveedor': proveedor,
+                    'precio_actual': ultimo_precio.precio_unitario,
+                    'precio_promedio': precio_promedio,
+                    'fecha': ultimo_precio.fecha,
+                    'usuario': ultimo_precio.usuario,
+                    'compra': ultimo_precio.compra,
+                    'total_registros': precios_proveedor.count()
+                })
+        
+        # Sort by current price
+        precios_proveedores.sort(key=lambda x: x['precio_actual'])
+        
+        # Calculate comparison statistics
+        if precios_proveedores:
+            precios_actuales = [p['precio_actual'] for p in precios_proveedores]
+            precio_menor = min(precios_actuales)
+            precio_mayor = max(precios_actuales)
+            precio_promedio_mercado = sum(precios_actuales) / len(precios_actuales)
+            
+            # Calculate savings with best price
+            for precio_data in precios_proveedores:
+                precio_data['ahorro_vs_menor'] = precio_data['precio_actual'] - precio_menor
+                precio_data['es_mejor_precio'] = precio_data['precio_actual'] == precio_menor
+                precio_data['diferencia_promedio'] = precio_data['precio_actual'] - precio_promedio_mercado
+        else:
+            precio_menor = precio_mayor = precio_promedio_mercado = 0
+        
+        comparison_stats = {
+            'precio_menor': precio_menor,
+            'precio_mayor': precio_mayor,
+            'precio_promedio_mercado': precio_promedio_mercado,
+            'diferencia_extremos': precio_mayor - precio_menor,
+            'porcentaje_diferencia': ((precio_mayor - precio_menor) / precio_menor * 100) if precio_menor > 0 else 0
+        }
+        
+        context = {
+            'producto': producto,
+            'precios_proveedores': precios_proveedores,
+            'productos': Producto.objects.all(),
+            'comparison_stats': comparison_stats,
+            'fecha_desde': fecha_desde,
+            'fecha_hasta': fecha_hasta,
+        }
+    else:
+        context = {
+            'productos': Producto.objects.all()
+        }
+    
+    return render(request, 'precios/comparar_proveedores.html', context)
 
 @login_required
-def toggle_block_product(request, producto_id):
-    producto = get_object_or_404(Producto, id=producto_id)
-    auditoria_activa = AuditoriaInventario.objects.filter(producto=producto, bloqueado=True).first()
-    if auditoria_activa:
-        auditoria_activa.finalizar()
-        mensaje = f"Producto '{producto.nombre}' desbloqueado exitosamente."
-        estado = False
+def registrar_precio_manual(request):
+    """Vista para registrar precios manualmente sin compra."""
+    if request.method == 'POST':
+        form = RegistroPrecioManualForm(request.POST)
+        if form.is_valid():
+            precio = form.save(commit=False)
+            precio.usuario = request.user
+            precio.save()
+            messages.success(request, f'Precio registrado exitosamente para {precio.producto.nombre}')
+            return redirect('/inventario/precios/')
     else:
-        motivo = request.POST.get('motivo', 'Bloqueado por auditoría o mantenimiento')
-        AuditoriaInventario.objects.create(
-            producto=producto,
-            bloqueado=True,
-            motivo=motivo,
-            usuario_auditor=request.user
-        )
-        mensaje = f"Producto '{producto.nombre}' bloqueado exitosamente."
-        estado = True
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'status': 'success', 'message': mensaje, 'blocked': estado})
-    return redirect('listar_productos')
+        form = RegistroPrecioManualForm()
+    
+    return render(request, 'precios/registrar_precio.html', {'form': form})
+
+def exportar_precios_csv(request):
+    """Export price history to CSV."""
+    try:
+        historial = HistorialPrecio.objects.select_related('producto', 'proveedor', 'usuario').all()
+        ahora = datetime.datetime.now()
+        fecha_str = ahora.strftime('%Y-%m-%d_%H-%M')
+        nombre_archivo = f'historial_precios_{fecha_str}.csv'
+        
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        
+        # Add BOM for Excel compatibility
+        response.write('\ufeff')
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Producto', 'Precio Unitario', 'Proveedor', 'Fecha', 'Usuario', 
+            'Precio Anterior', 'Variación', '% Variación', 'Observaciones'
+        ])
+        
+        for precio in historial:
+            writer.writerow([
+                precio.producto.nombre,
+                precio.precio_unitario,
+                precio.proveedor.nombre if precio.proveedor else 'Sin proveedor',
+                precio.fecha.strftime('%d/%m/%Y %H:%M'),
+                precio.usuario.username if precio.usuario else 'Sistema',
+                precio.precio_anterior or 'N/A',
+                precio.variacion_precio or 'N/A',
+                f'{precio.porcentaje_variacion:.2f}%' if precio.porcentaje_variacion else 'N/A',
+                precio.observaciones
+            ])
+        
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error al generar el CSV: {str(e)}", status=500)
+
+def reporte_precios_pdf(request):
+    """Generate PDF report of price history."""
+    try:
+        historial = HistorialPrecio.objects.select_related('producto', 'proveedor', 'usuario').all()[:100]  # Limit for PDF
+        ahora = datetime.datetime.now()
+        fecha_str = ahora.strftime('%Y-%m-%d_%H-%M')
+        
+        # Calculate summary statistics
+        stats = {
+            'total_registros': historial.count(),
+            'productos_unicos': historial.values('producto').distinct().count(),
+            'proveedores_unicos': historial.values('proveedor').distinct().count(),
+            'precio_promedio': historial.aggregate(avg_precio=models.Avg('precio_unitario'))['avg_precio'] or 0,
+        }
+        
+        template = get_template('precios/reporte_precios_pdf.html')
+        html = template.render({
+            'historial': historial,
+            'stats': stats,
+            'fecha_generacion': ahora
+        })
+        
+        buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(BytesIO(html.encode('UTF-8')), dest=buffer, encoding='UTF-8')
+        
+        if pisa_status.err:
+            return HttpResponse("Error al generar PDF", status=500)
+        
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="reporte_precios_{fecha_str}.pdf"'
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f"Error al generar el PDF: {str(e)}", status=500)
 
 # Dashboard y edición
 
@@ -559,7 +933,7 @@ def crear_lote(request, producto_id):
             )
             
             messages.success(request, f'Lote {lote.numero_lote} creado exitosamente.')
-            return redirect('detalle_producto_lotes', producto_id=producto.id)
+            return redirect('inventario:detalle_producto_lotes', producto_id=producto.id)
     else:
         form = LoteProductoForm(producto=producto)
     
@@ -569,17 +943,78 @@ def crear_lote(request, producto_id):
         'action': 'Crear'
     })
 
-@login_required
+def editar_lote(request, lote_id):
+    """Vista para editar un lote existente."""
+    lote = get_object_or_404(LoteProducto, id=lote_id)
+    producto = lote.producto
+    
+    if request.method == 'POST':
+        form = LoteProductoForm(request.POST, instance=lote)
+        if form.is_valid():
+            # Save the form but don't commit yet
+            lote_modificado = form.save(commit=False)
+            
+            # Calculate the difference in quantity
+            cantidad_anterior = lote.cantidad_actual
+            cantidad_nueva = form.cleaned_data['cantidad_inicial']
+            diferencia = cantidad_nueva - cantidad_anterior
+            
+            # Update the current quantity
+            lote_modificado.cantidad_actual = cantidad_nueva
+            lote_modificado.save()
+            
+            # Create history record - REMOVE diferencia parameter
+            HistorialLote.objects.create(
+                lote=lote_modificado,
+                tipo_cambio='modificacion',  # Make sure 'modificacion' is a valid choice
+                cantidad_anterior=cantidad_anterior,
+                cantidad_nueva=cantidad_nueva,
+                # Don't set diferencia - it's a computed property
+                usuario=request.user,
+                observaciones=f"Modificación manual: {form.cleaned_data.get('observaciones', '')}"
+            )
+            
+            # Update product stock if quantity changed
+            if diferencia != 0:
+                producto = lote_modificado.producto
+                producto.stock_actual += diferencia
+                producto.save()
+                
+                # Create inventory movement record
+                MovimientoInventario.objects.create(
+                    producto=producto,
+                    tipo_movimiento='ajuste',
+                    cantidad=abs(diferencia),
+                    direccion='entrada' if diferencia > 0 else 'salida',
+                    usuario=request.user,
+                    observaciones=f"Ajuste por modificación del lote #{lote_modificado.numero_lote}",
+                    lote=lote_modificado
+                )
+            
+            messages.success(request, f"Lote #{lote_modificado.numero_lote} actualizado exitosamente.")
+            return redirect('inventario:detalle_producto_lotes', producto_id=lote_modificado.producto.id)
+    else:
+        form = LoteProductoForm(instance=lote)
+    
+    return render(request, 'productos/formulario_lote.html', {
+        'form': form,
+        'producto': producto,
+        'lote': lote,
+        'action': 'Editar'
+    })
+
 def historial_lotes(request, lote_id=None):
-    """Vista para mostrar el historial de lotes."""
+    """Vista para mostrar el historial de cambios de un lote o todos los lotes."""
     if lote_id:
         lote = get_object_or_404(LoteProducto, id=lote_id)
-        historial = HistorialLote.objects.filter(lote=lote)
-        titulo = f'Historial del Lote {lote.numero_lote}'
+        # Change 'fecha' to 'fecha_cambio' here:
+        historial = HistorialLote.objects.filter(lote=lote).order_by('-fecha_cambio')
+        titulo = f"Historial del Lote #{lote.numero_lote}"
     else:
-        historial = HistorialLote.objects.all()
         lote = None
-        titulo = 'Historial de Todos los Lotes'
+        # Also update here if you have this line:
+        historial = HistorialLote.objects.all().order_by('-fecha_cambio')
+        titulo = "Historial de Todos los Lotes"
     
     return render(request, 'productos/historial_lotes.html', {
         'historial': historial,
@@ -587,60 +1022,67 @@ def historial_lotes(request, lote_id=None):
         'titulo': titulo
     })
 
-@login_required
-def editar_lote(request, lote_id):
-    """Vista para editar un lote."""
-    lote = get_object_or_404(LoteProducto, id=lote_id)
+def api_producto_lotes(request, producto_id):
+    """API endpoint to get product lots."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    lotes = LoteProducto.objects.filter(producto=producto, activo=True).values(
+        'id', 'numero_lote', 'fecha_vencimiento', 'cantidad_actual'
+    )
+    return JsonResponse(list(lotes), safe=False)
+
+def toggle_block_product(request, producto_id):
+    """Toggle the block status of a product for auditing purposes."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    auditoria_activa = AuditoriaInventario.objects.filter(producto=producto, bloqueado=True).first()
     
-    if request.method == 'POST':
-        cantidad_anterior = lote.cantidad_actual
-        form = LoteProductoForm(request.POST, instance=lote, producto=lote.producto)
-        if form.is_valid():
-            lote_editado = form.save()
-            
-            # Create history record if quantity changed
-            if cantidad_anterior != lote_editado.cantidad_actual:
-                HistorialLote.objects.create(
-                    lote=lote_editado,
-                    tipo_cambio='uso',
-                    cantidad_anterior=cantidad_anterior,
-                    cantidad_nueva=lote_editado.cantidad_actual,
-                    usuario=request.user,  # Current user making the edit
-                    observaciones=f'Cantidad modificada de {cantidad_anterior} a {lote_editado.cantidad_actual} por {request.user.username}'
-                )
-            
-            messages.success(request, f'Lote {lote.numero_lote} actualizado exitosamente.')
-            return redirect('detalle_producto_lotes', producto_id=lote.producto.id)
+    if auditoria_activa:
+        auditoria_activa.finalizar()
+        mensaje = f"Producto '{producto.nombre}' desbloqueado exitosamente."
+        estado = False
     else:
-        form = LoteProductoForm(instance=lote, producto=lote.producto)
+        motivo = request.POST.get('motivo', 'Bloqueado por auditoría o mantenimiento')
+        AuditoriaInventario.objects.create(
+            producto=producto,
+            bloqueado=True,
+            motivo=motivo,
+            usuario_auditor=request.user
+        )
+        mensaje = f"Producto '{producto.nombre}' bloqueado exitosamente."
+        estado = True
     
-    return render(request, 'productos/formulario_lote.html', {
-        'form': form,
-        'producto': lote.producto,
-        'lote': lote,
-        'action': 'Editar'
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': mensaje, 'blocked': estado})
+    
+    messages.success(request, mensaje)
+    return redirect('/inventario/productos/')
+
+def historial_bloqueos(request):
+    """View audit history of product blocks."""
+    auditorias = AuditoriaInventario.objects.select_related('producto', 'usuario_auditor').order_by('-fecha_auditoria')
+    
+    # Pagination
+    paginator = Paginator(auditorias, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'productos/historial_bloqueos.html', {
+        'page_obj': page_obj,
+        'auditorias': auditorias
     })
 
 @login_required
-def api_producto_lotes(request, producto_id):
-    """API endpoint to get lotes for a specific product."""
+def api_lotes_producto(request, producto_id):
+    """API para obtener los lotes disponibles de un producto."""
     try:
-        producto = get_object_or_404(Producto, id=producto_id)
-        lotes = LoteProducto.objects.filter(producto=producto, activo=True).order_by('fecha_vencimiento')
+        producto = Producto.objects.get(id=producto_id)
+        # Get non-expired lotes with available quantity
+        lotes = LoteProducto.objects.filter(
+            producto=producto,
+            cantidad_actual__gt=0
+        ).exclude(
+            fecha_vencimiento__lt=timezone.now().date()
+        ).values('id', 'numero_lote', 'fecha_vencimiento', 'cantidad_actual')
         
-        lotes_data = []
-        for lote in lotes:
-            lotes_data.append({
-                'id': lote.id,
-                'numero_lote': lote.numero_lote,
-                'cantidad_actual': lote.cantidad_actual,
-                'fecha_vencimiento': lote.fecha_vencimiento.strftime('%d/%m/%Y'),
-                'esta_vencido': lote.esta_vencido
-            })
-        
-        return JsonResponse({
-            'lotes': lotes_data,
-            'stock_total': producto.stock_actual
-        })
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return JsonResponse(list(lotes), safe=False)
+    except Producto.DoesNotExist:
+        return JsonResponse({'error': 'Producto no encontrado'}, status=404)

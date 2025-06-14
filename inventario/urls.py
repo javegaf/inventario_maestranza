@@ -36,6 +36,12 @@ urlpatterns = [
     path('reportes/exportar/pdf/', views.exportar_pdf, name='exportar_pdf'),
 
     path('precios/', views.historial_precios, name='historial_precios'),
+    path('precios/producto/<int:producto_id>/', views.historial_precios_producto, name='historial_precios_producto'),
+    path('precios/proveedor/<int:proveedor_id>/', views.historial_precios_proveedor, name='historial_precios_proveedor'),
+    path('precios/comparar/', views.comparar_precios_proveedores, name='comparar_precios_proveedores'),
+    path('precios/registrar/', views.registrar_precio_manual, name='registrar_precio_manual'),
+    path('precios/exportar/csv/', views.exportar_precios_csv, name='exportar_precios_csv'),
+    path('precios/exportar/pdf/', views.reporte_precios_pdf, name='reporte_precios_pdf'),
 
     path('dashboard/', views.dashboard_inventario, name='dashboard'),
 
@@ -45,5 +51,5 @@ urlpatterns = [
     path('lotes/historial/', views.historial_lotes, name='historial_lotes'),
     path('lotes/<int:lote_id>/historial/', views.historial_lotes, name='historial_lote_individual'),
 
-    path('api/productos/<int:producto_id>/lotes/', views.api_producto_lotes, name='api_producto_lotes'),
+    path('api/productos/<int:producto_id>/lotes/', views.api_lotes_producto, name='api_lotes_producto'),
 ]

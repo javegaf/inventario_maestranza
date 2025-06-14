@@ -9,7 +9,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
-    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote
+    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote, HistorialPrecio
 )
 
 User = get_user_model()
@@ -266,3 +266,56 @@ class LoteFiltroForm(forms.Form):
     estado = forms.ChoiceField(choices=ESTADO_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
     fecha_vencimiento_desde = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     fecha_vencimiento_hasta = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+
+
+class HistorialPrecioFiltroForm(forms.Form):
+    """Formulario para filtrar el historial de precios."""
+    
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        required=False,
+        empty_label="Todos los productos",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.filter(activo=True),
+        required=False,
+        empty_label="Todos los proveedores",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    fecha_desde = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    
+    fecha_hasta = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+
+
+class RegistroPrecioManualForm(forms.ModelForm):
+    """Formulario para registrar precios manualmente sin compra."""
+    
+    class Meta:
+        model = HistorialPrecio
+        fields = ['producto', 'precio_unitario', 'proveedor', 'observaciones']
+        widgets = {
+            'producto': forms.Select(attrs={'class': 'form-control'}),
+            'precio_unitario': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0',
+                'placeholder': 'Ej: 25.50'
+            }),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['proveedor'].required = False
+        self.fields['observaciones'].help_text = 'Motivo del registro de precio (ej: cotización, precio de mercado, etc.)'
+        self.fields['observaciones'].required = True
