@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load inventario_extras %}
+{% load static %}
+
+{% block title %}Eliminar Material - {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-trash"></i> Eliminar Material del Proyecto</h2>
+        <p class="text-muted">Proyecto: {{ proyecto.nombre }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h4 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> ¿Confirma la eliminación?</h4>
+            <p>Está a punto de eliminar el siguiente material del proyecto:</p>
+            
+            <ul>
+                <li><strong>Producto:</strong> {{ material.producto.nombre }}</li>
+                <li><strong>Cantidad Asignada:</strong> {{ material.cantidad_asignada }}</li>
+                <li><strong>Cantidad Utilizada:</strong> {{ material.cantidad_utilizada }}</li>
+                <li><strong>Cantidad a Devolver al Inventario:</strong> {{ material.cantidad_asignada|sub:material.cantidad_utilizada }}</li>
+                {% if material.lote %}
+                <li><strong>Lote:</strong> {{ material.lote.numero_lote }}</li>
+                {% endif %}
+            </ul>
+            
+            <hr>
+            <p class="mb-0">
+                Esta acción devolverá al inventario la cantidad no utilizada ({{ material.cantidad_asignada|sub:material.cantidad_utilizada }} unidades) 
+                y eliminará el registro de este material en el proyecto. Esta acción no se puede deshacer.
+            </p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">Confirmar Eliminación</button>
+                <a href="{% url 'inventario:detalle_proyecto' proyecto.id %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

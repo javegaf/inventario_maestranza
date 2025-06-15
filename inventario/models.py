@@ -399,26 +399,111 @@ class AuditoriaInventario(models.Model):
 
 
 class Proyecto(models.Model):
-    """Proyecto al que se le asignan productos del inventario."""
-
+    """Modelo para representar proyectos que utilizan materiales del inventario."""
     nombre = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True)
+    descripcion = models.TextField(blank=True, null=True)
     fecha_inicio = models.DateField()
-    fecha_fin_estimada = models.DateField(null=True, blank=True)
-
+    fecha_fin_estimada = models.DateField(blank=True, null=True)
+    fecha_fin_real = models.DateField(blank=True, null=True)
+    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+                                   blank=True, null=True, related_name='proyectos_responsable')
+    estado = models.CharField(max_length=20, choices=[
+        ('planificacion', 'En Planificación'),
+        ('ejecucion', 'En Ejecución'),
+        ('completado', 'Completado'),
+        ('suspendido', 'Suspendido'),
+        ('cancelado', 'Cancelado')
+    ], default='planificacion')
+    notas = models.TextField(blank=True, null=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+                                  blank=True, null=True, related_name='proyectos_creados')
+    fecha_creacion = models.DateTimeField(blank=True , null=True)
+    fecha_actualizacion = models.DateTimeField(blank=True , null=True)
+    
+    class Meta:
+        ordering = ['-fecha_inicio']
+        verbose_name = 'Proyecto'
+        verbose_name_plural = 'Proyectos'
+    
     def __str__(self):
-        """Retorna el nombre del proyecto."""
-        return str(self.nombre)
+        return self.nombre
+    
+    @property
+    def total_materiales(self):
+        """Devuelve el total de materiales asignados al proyecto."""
+        return self.materiales.count()
+    
+    @property
+    def costo_total_estimado(self):
+        """Calcula el costo total estimado del proyecto basado en los materiales asignados."""
+        return sum(material.costo_total for material in self.materiales.all())
+    
+    @property
+    def dias_restantes(self):
+        """Calcula los días restantes hasta la fecha de finalización estimada."""
+        if not self.fecha_fin_estimada:
+            return None
+        if self.estado == 'completado':
+            return 0
+        
+        dias = (self.fecha_fin_estimada - timezone.now().date()).days
+        return max(0, dias)
+    
+    @property
+    def progreso(self):
+        """Calcula el progreso aproximado del proyecto."""
+        if self.estado == 'completado':
+            return 100
+        if self.estado == 'planificacion':
+            return 0
+            
+        # Si está en ejecución, calcular basado en tiempo transcurrido
+        if self.fecha_fin_estimada and self.fecha_inicio:
+            duracion_total = (self.fecha_fin_estimada - self.fecha_inicio).days
+            if duracion_total <= 0:
+                return 50  # Valor por defecto si las fechas no son coherentes
+                
+            dias_transcurridos = (timezone.now().date() - self.fecha_inicio).days
+            progreso = min(99, int((dias_transcurridos / duracion_total) * 100))
+            return max(1, progreso)  # Al menos 1% si ya comenzó
+            
+        return 50  # Valor por defecto
 
 
-class AsignacionMaterialProyecto(models.Model):
-    """Asociación de productos asignados a un proyecto específico."""
-
-    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+class MaterialProyecto(models.Model):
+    """Materiales asignados a un proyecto específico."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='materiales')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='proyectos')
     cantidad_asignada = models.PositiveIntegerField()
+    cantidad_utilizada = models.PositiveIntegerField(default=0)
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
-
+    lote = models.ForeignKey(LoteProducto, on_delete=models.SET_NULL, blank=True, null=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        verbose_name = 'Material de Proyecto'
+        verbose_name_plural = 'Materiales de Proyectos'
+        unique_together = ['proyecto', 'producto', 'lote']
+    
     def __str__(self):
-        """Retorna una cadena que relaciona producto con proyecto."""
-        return f"{self.producto} → {self.proyecto}"
+        return f"{self.producto.nombre} - {self.proyecto.nombre}"
+    
+    @property
+    def costo_total(self):
+        """Calcula el costo total de este material en el proyecto."""
+        # Obtener el precio más reciente del producto
+        ultimo_precio = HistorialPrecio.objects.filter(producto=self.producto).order_by('-fecha').first()
+        precio_unitario = ultimo_precio.precio_unitario if ultimo_precio else 0
+        return precio_unitario * self.cantidad_asignada
+    
+    @property
+    def cantidad_disponible(self):
+        """Calcula la cantidad que aún queda disponible para usar."""
+        return self.cantidad_asignada - self.cantidad_utilizada
+    
+    @property
+    def porcentaje_utilizado(self):
+        """Calcula el porcentaje de material utilizado."""
+        if self.cantidad_asignada == 0:
+            return 0
+        return (self.cantidad_utilizada / self.cantidad_asignada) * 100

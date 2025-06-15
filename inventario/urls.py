@@ -52,4 +52,14 @@ urlpatterns = [
     path('lotes/<int:lote_id>/historial/', views.historial_lotes, name='historial_lote_individual'),
 
     path('api/productos/<int:producto_id>/lotes/', views.api_lotes_producto, name='api_lotes_producto'),
+
+    # Proyectos
+    path('proyectos/', views.listar_proyectos, name='listar_proyectos'),
+    path('proyectos/crear/', views.crear_proyecto, name='crear_proyecto'),
+    path('proyectos/<int:proyecto_id>/', views.detalle_proyecto, name='detalle_proyecto'),
+    path('proyectos/<int:proyecto_id>/editar/', views.editar_proyecto, name='editar_proyecto'),
+    path('proyectos/<int:proyecto_id>/asignar-material/', views.asignar_material, name='asignar_material'),
+    path('proyectos/materiales/<int:material_id>/uso/', views.actualizar_uso_material, name='actualizar_uso_material'),
+    path('proyectos/materiales/<int:material_id>/eliminar/', views.eliminar_material, name='eliminar_material'),
+    path('api/productos/<int:producto_id>/info/', views.api_producto_info, name='api_producto_info'),
 ]

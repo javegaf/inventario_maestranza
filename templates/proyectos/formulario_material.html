@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Material - {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-tools"></i> {{ action }} Material</h2>
+        <p class="text-muted">Proyecto: {{ proyecto.nombre }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="{{ form.producto.id_for_label }}" class="form-label">Producto:</label>
+                {{ form.producto }}
+                {% if form.producto.errors %}
+                    <div class="text-danger">{{ form.producto.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.cantidad_asignada.id_for_label }}" class="form-label">Cantidad a Asignar:</label>
+                {{ form.cantidad_asignada }}
+                {% if form.cantidad_asignada.errors %}
+                    <div class="text-danger">{{ form.cantidad_asignada.errors }}</div>
+                {% endif %}
+                <div id="stock-info" class="form-text text-muted"></div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.lote.id_for_label }}" class="form-label">Lote (opcional):</label>
+                {{ form.lote }}
+                {% if form.lote.errors %}
+                    <div class="text-danger">{{ form.lote.errors }}</div>
+                {% endif %}
+                <div class="form-text">Seleccionar un lote específico es opcional. Si no selecciona ninguno, se tomará del stock general.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.notas.id_for_label }}" class="form-label">Notas:</label>
+                {{ form.notas }}
+                {% if form.notas.errors %}
+                    <div class="text-danger">{{ form.notas.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">Asignar Material</button>
+                <a href="{% url 'inventario:detalle_proyecto' proyecto.id %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productoSelect = document.getElementById('{{ form.producto.id_for_label }}');
+    const loteSelect = document.getElementById('{{ form.lote.id_for_label }}');
+    const stockInfo = document.getElementById('stock-info');
+    
+    // Función para cargar información del producto
+    function cargarInfoProducto(productoId) {
+        if (!productoId) {
+            stockInfo.textContent = '';
+            loteSelect.innerHTML = '<option value="">---------</option>';
+            loteSelect.disabled = true;
+            return;
+        }
+        
+        fetch(`/inventario/api/productos/${productoId}/info/`)
+            .then(response => {
+                if (!response.ok) throw new Error('Error al cargar información del producto');
+                return response.json();
+            })
+            .then(data => {
+                // Mostrar stock disponible
+                stockInfo.innerHTML = `<strong>Stock disponible:</strong> ${data.stock_actual} unidades`;
+                
+                // Actualizar selector de lotes
+                loteSelect.innerHTML = '<option value="">Seleccione un lote (opcional)</option>';
+                
+                if (data.lotes && data.lotes.length > 0) {
+                    data.lotes.forEach(lote => {
+                        const fechaVencimiento = new Date(lote.fecha_vencimiento).toLocaleDateString();
+                        loteSelect.innerHTML += `<option value="${lote.id}">${lote.numero_lote} - Vence: ${fechaVencimiento} (${lote.cantidad_actual} disponibles)</option>`;
+                    });
+                    loteSelect.disabled = false;
+                } else {
+                    loteSelect.innerHTML += '<option value="" disabled>No hay lotes disponibles</option>';
+                    loteSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                stockInfo.textContent = 'Error al cargar información del producto';
+            });
+    }
+    
+    // Escuchar cambios en el selector de productos
+    productoSelect.addEventListener('change', function() {
+        cargarInfoProducto(this.value);
+    });
+    
+    // Cargar información si ya hay un producto seleccionado
+    if (productoSelect.value) {
+        cargarInfoProducto(productoSelect.value);
+    }
+});
+</script>
+{% endblock %}

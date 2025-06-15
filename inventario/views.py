@@ -10,6 +10,7 @@ import logging  # Add this import
 from io import BytesIO
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.core.paginator import Paginator
@@ -26,13 +27,15 @@ from xhtml2pdf import pisa
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
-    EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote
+    EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
+    Proyecto, MaterialProyecto
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
     MovimientoFiltroForm, ProveedorForm, KitProductoForm,
     CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
-    HistorialPrecioFiltroForm, RegistroPrecioManualForm  # Add these imports
+    HistorialPrecioFiltroForm, RegistroPrecioManualForm, ProyectoForm,
+    MaterialProyectoForm, ActualizarUsoMaterialForm  # Add these imports
 )
 
 logger = logging.getLogger(__name__)
@@ -73,13 +76,72 @@ def lista_productos(request):
     
     return render(request, 'productos/lista_productos.html', context)
    
-
+@login_required
 def crear_producto(request):
     form = ProductoForm(request.POST or None)
     if form.is_valid():
         form.save()
         return redirect('listar_productos')
     return render(request, 'productos/formulario_producto.html', {'form': form})
+
+
+@login_required
+def editar_producto(request, producto_id):
+    """Vista para editar un producto existente."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    fecha_actual = producto.fecha_vencimiento
+    
+    if request.method == 'POST':
+        form = ProductoEditableForm(request.POST, instance=producto)
+        if form.is_valid():
+            producto_editado = form.save(commit=False)
+            if not form.cleaned_data.get('fecha_vencimiento'):
+                producto_editado.fecha_vencimiento = fecha_actual
+            producto_editado.save()
+            
+            # Update stock alerts if needed
+            if producto.stock_minimo > 0:
+                AlertaStock.objects.update_or_create(
+                    producto=producto,
+                    tipo_alerta='minimo',
+                    defaults={'umbral': producto.stock_minimo}
+                )
+            
+            messages.success(request, "Producto actualizado correctamente.")
+            return redirect('inventario:listar_productos')  # Add namespace
+    else:
+        form = ProductoEditableForm(instance=producto)
+    
+    return render(request, 'productos/form_producto.html', {'form': form})
+
+@login_required
+def eliminar_producto(request, producto_id):
+    """Vista para eliminar un producto existente."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    
+    # Check if we can safely delete this product
+    lotes_existentes = LoteProducto.objects.filter(producto=producto).exists()
+    movimientos_existentes = MovimientoInventario.objects.filter(producto=producto).exists()
+    
+    if request.method == 'POST':
+        if 'confirmar' in request.POST:
+            nombre_producto = producto.nombre
+            
+            try:
+                producto.delete()
+                messages.success(request, f'Producto "{nombre_producto}" eliminado correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar el producto: {e}')
+            
+            return redirect('inventario:listar_productos')  # Add namespace
+    
+    return render(request, 'productos/confirmar_eliminar_producto.html', {
+        'producto': producto,
+        'lotes_existentes': lotes_existentes,
+        'movimientos_existentes': movimientos_existentes,
+    })
+
+
 
 # Movimientos
 
@@ -853,27 +915,7 @@ def dashboard_inventario(request):
     }
     return render(request, 'inventario/dashboard.html', context)
 
-def editar_producto(request, producto_id):
-    producto = get_object_or_404(Producto, pk=producto_id)
-    fecha_actual = producto.fecha_vencimiento
-    if request.method == 'POST':
-        form = ProductoEditableForm(request.POST, instance=producto)
-        if form.is_valid():
-            producto_editado = form.save(commit=False)
-            if not form.cleaned_data.get('fecha_vencimiento'):
-                producto_editado.fecha_vencimiento = fecha_actual
-            producto_editado.save()
-            messages.success(request, "Producto actualizado correctamente.")
-            return redirect('listar_productos')
-    else:
-        form = ProductoEditableForm(instance=producto)
-    return render(request, 'productos/form_producto.html', {'form': form})
 
-def eliminar_producto(request, producto_id):
-    producto = get_object_or_404(Producto, id=producto_id)
-    producto.delete()
-    messages.success(request, 'Producto eliminado correctamente.')
-    return redirect('listar_productos')
 
 @login_required
 def detalle_producto_lotes(request, producto_id):
@@ -1086,3 +1128,342 @@ def api_lotes_producto(request, producto_id):
         return JsonResponse(list(lotes), safe=False)
     except Producto.DoesNotExist:
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+
+# Proyectos
+@login_required
+def listar_proyectos(request):
+    """Vista para listar todos los proyectos."""
+    # Filtros
+    estado = request.GET.get('estado')
+    responsable = request.GET.get('responsable')
+    buscar = request.GET.get('buscar')
+    
+    proyectos = Proyecto.objects.all()
+    
+    if estado:
+        proyectos = proyectos.filter(estado=estado)
+    if responsable:
+        proyectos = proyectos.filter(responsable_id=responsable)
+    if buscar:
+        proyectos = proyectos.filter(Q(nombre__icontains=buscar) | Q(descripcion__icontains=buscar))
+    
+    # Estadísticas
+    stats = {
+        'total': Proyecto.objects.count(),
+        'en_ejecucion': Proyecto.objects.filter(estado='ejecucion').count(),
+        'completados': Proyecto.objects.filter(estado='completado').count(),
+        'planificacion': Proyecto.objects.filter(estado='planificacion').count(),
+    }
+    
+    # Datos para filtros
+    responsables = get_user_model().objects.filter(proyectos_responsable__isnull=False).distinct()
+    
+    return render(request, 'proyectos/listar_proyecto.html', {
+        'proyectos': proyectos,
+        'stats': stats,
+        'responsables': responsables,
+        'estado_seleccionado': estado,
+        'responsable_seleccionado': responsable,
+        'busqueda': buscar,
+    })
+
+@login_required
+def crear_proyecto(request):
+    """Vista para crear un nuevo proyecto."""
+    if request.method == 'POST':
+        form = ProyectoForm(request.POST)
+        if form.is_valid():
+            proyecto = form.save(commit=False)
+            proyecto.creado_por = request.user
+            proyecto.save()
+            messages.success(request, f'Proyecto "{proyecto.nombre}" creado exitosamente.')
+            return redirect('inventario:listar_proyectos')
+    else:
+        form = ProyectoForm()
+    
+    return render(request, 'proyectos/formulario_proyecto.html', {
+        'form': form,
+        'action': 'Crear'
+    })
+
+@login_required
+def editar_proyecto(request, proyecto_id):
+    """Vista para editar un proyecto existente."""
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    
+    if request.method == 'POST':
+        form = ProyectoForm(request.POST, instance=proyecto)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Proyecto "{proyecto.nombre}" actualizado exitosamente.')
+            return redirect('inventario:detalle_proyecto', proyecto_id=proyecto.id)
+    else:
+        form = ProyectoForm(instance=proyecto)
+    
+    return render(request, 'proyectos/formulario_proyecto.html', {
+        'form': form,
+        'proyecto': proyecto,
+        'action': 'Editar'
+    })
+
+@login_required
+def detalle_proyecto(request, proyecto_id):
+    """Vista para ver los detalles de un proyecto y sus materiales."""
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    materiales = MaterialProyecto.objects.filter(proyecto=proyecto).select_related('producto', 'lote')
+    
+    # Calcular estadísticas de materiales
+    stats = {
+        'total_materiales': materiales.count(),
+        'costo_total': sum(material.costo_total for material in materiales),
+        'productos_unicos': materiales.values('producto').distinct().count(),
+    }
+    
+    return render(request, 'proyectos/detalle_proyecto.html', {
+        'proyecto': proyecto,
+        'materiales': materiales,
+        'stats': stats,
+    })
+
+@login_required
+def asignar_material(request, proyecto_id):
+    """Vista para asignar un material a un proyecto."""
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    
+    if request.method == 'POST':
+        form = MaterialProyectoForm(request.POST, proyecto=proyecto)
+        if form.is_valid():
+            material = form.save(commit=False)
+            material.proyecto = proyecto
+            
+            # Verificar stock disponible
+            producto = material.producto
+            cantidad_requerida = material.cantidad_asignada
+            
+            # Check if product is blocked using AuditoriaInventario
+            auditoria_activa = AuditoriaInventario.objects.filter(
+                producto=producto, bloqueado=True
+            ).exists()
+            
+            if auditoria_activa:
+                form.add_error('producto', 
+                              'Este producto está bloqueado por auditoría y no puede ser asignado a proyectos.')
+                return render(request, 'proyectos/formulario_material.html', {
+                    'form': form,
+                    'proyecto': proyecto,
+                    'action': 'Asignar'
+                })
+            
+            if cantidad_requerida > producto.stock_actual:
+                form.add_error('cantidad_asignada', 
+                              f'No hay suficiente stock. Disponible: {producto.stock_actual}')
+            else:
+                # Actualizar stock del producto
+                producto.stock_actual -= cantidad_requerida
+                producto.save()
+                
+                # Si se seleccionó un lote, actualizar su cantidad
+                if material.lote:
+                    lote = material.lote
+                    if cantidad_requerida > lote.cantidad_actual:
+                        form.add_error('lote', 
+                                      f'No hay suficiente cantidad en este lote. Disponible: {lote.cantidad_actual}')
+                        # Revertir cambio en producto
+                        producto.stock_actual += cantidad_requerida
+                        producto.save()
+                        return render(request, 'proyectos/formulario_material.html', {
+                            'form': form,
+                            'proyecto': proyecto,
+                            'action': 'Asignar'
+                        })
+                    
+                    # Actualizar lote
+                    lote.cantidad_actual -= cantidad_requerida
+                    lote.save()
+                    
+                    # Registrar en historial del lote
+                    HistorialLote.objects.create(
+                        lote=lote,
+                        tipo_cambio='uso',
+                        cantidad_anterior=lote.cantidad_actual + cantidad_requerida,
+                        cantidad_nueva=lote.cantidad_actual,
+                        usuario=request.user,
+                        observaciones=f"Asignado al proyecto: {proyecto.nombre}"
+                    )
+                
+                # Registrar movimiento de inventario
+                MovimientoInventario.objects.create(
+                    producto=producto,
+                    cantidad=cantidad_requerida,
+                    tipo='salida',  # Use the correct field name
+                    usuario=request.user,
+                    observaciones=f"Asignado al proyecto: {proyecto.nombre}",
+                    lote=material.lote
+)
+                
+                # Guardar el material asignado
+                material.save()
+                
+                messages.success(request, f'{cantidad_requerida} unidades de {producto.nombre} asignadas al proyecto.')
+                return redirect('inventario:detalle_proyecto', proyecto_id=proyecto.id)
+    else:
+        form = MaterialProyectoForm(proyecto=proyecto)
+    
+    return render(request, 'proyectos/formulario_material.html', {
+        'form': form,
+        'proyecto': proyecto,
+        'action': 'Asignar'
+    })
+
+@login_required
+def actualizar_uso_material(request, material_id):
+    """Vista para actualizar la cantidad utilizada de un material."""
+    material = get_object_or_404(MaterialProyecto, id=material_id)
+    proyecto = material.proyecto
+    
+    if request.method == 'POST':
+        form = ActualizarUsoMaterialForm(request.POST, instance=material)
+        if form.is_valid():
+            cantidad_anterior = material.cantidad_utilizada
+            material = form.save()
+            
+            # Verificar si la cantidad utilizada cambió
+            if material.cantidad_utilizada != cantidad_anterior:
+                diferencia = material.cantidad_utilizada - cantidad_anterior
+                
+                # Registrar en el historial si la diferencia es significativa
+                if diferencia != 0:
+                    messages.success(
+                        request, 
+                        f'Uso de {material.producto.nombre} actualizado: {material.cantidad_utilizada} unidades utilizadas.'
+                    )
+            else:
+                messages.info(request, 'No se detectaron cambios en la cantidad utilizada.')
+            
+            return redirect('inventario:detalle_proyecto', proyecto_id=proyecto.id)
+    else:
+        form = ActualizarUsoMaterialForm(instance=material)
+    
+    return render(request, 'proyectos/formulario_uso_material.html', {
+        'form': form,
+        'material': material,
+        'proyecto': proyecto
+    })
+
+@login_required
+def eliminar_material(request, material_id):
+    """Vista para eliminar un material asignado a un proyecto."""
+    material = get_object_or_404(MaterialProyecto, id=material_id)
+    proyecto = material.proyecto
+    producto = material.producto
+    lote = material.lote
+    cantidad_asignada = material.cantidad_asignada
+    cantidad_utilizada = material.cantidad_utilizada
+    
+    if request.method == 'POST':
+        try:
+            # Calculate quantity to return (what wasn't used)
+            cantidad_devolver = cantidad_asignada - cantidad_utilizada
+            
+            # Log for debugging purposes
+            print(f"DEBUG: Material deletion - Assigned: {cantidad_asignada}, Used: {cantidad_utilizada}, To Return: {cantidad_devolver}")
+            
+            if cantidad_devolver > 0:
+                # Return to the product's stock
+                producto.stock_actual += cantidad_devolver
+                producto.save()
+                
+                print(f"DEBUG: Updated product stock to {producto.stock_actual}")
+                
+                # If it was assigned from a specific lot, return to that lot
+                if lote:
+                    lote.cantidad_actual += cantidad_devolver
+                    lote.save()
+                    
+                    print(f"DEBUG: Updated lot quantity to {lote.cantidad_actual}")
+                    
+                    # Register in lot history
+                    HistorialLote.objects.create(
+                        lote=lote,
+                        tipo_cambio='devolucion',
+                        cantidad_anterior=lote.cantidad_actual - cantidad_devolver,
+                        cantidad_nueva=lote.cantidad_actual,
+                        usuario=request.user,
+                        observaciones=f"Devuelto del proyecto: {proyecto.nombre}"
+                    )
+                
+                # Register inventory movement
+                MovimientoInventario.objects.create(
+                    producto=producto,
+                    cantidad=cantidad_devolver,
+                    tipo='entrada',  # Make sure this matches your model field
+                    usuario=request.user,
+                    observaciones=f"Devuelto del proyecto: {proyecto.nombre}",
+                    lote=lote
+                )
+                
+                print(f"DEBUG: Created inventory movement record")
+            
+            # Delete the assigned material
+            material.delete()
+            print(f"DEBUG: Material deleted from project")
+            
+            messages.success(
+                request, 
+                f'Material {producto.nombre} eliminado del proyecto. Se han devuelto {cantidad_devolver} unidades al inventario.'
+            )
+            
+        except Exception as e:
+            # Log the error and show it to the user
+            print(f"ERROR in eliminar_material: {str(e)}")
+            messages.error(request, f"Error al eliminar el material: {str(e)}")
+            
+        return redirect('inventario:detalle_proyecto', proyecto_id=proyecto.id)
+    
+    return render(request, 'proyectos/confirmar_eliminar_material.html', {
+        'material': material,
+        'proyecto': proyecto
+    })
+
+@login_required
+def api_producto_info(request, producto_id):
+    """API para obtener información de un producto, incluido stock y lotes disponibles."""
+    try:
+        producto = Producto.objects.get(id=producto_id)
+        
+        # Check if product is blocked using AuditoriaInventario
+        is_blocked = AuditoriaInventario.objects.filter(
+            producto=producto, bloqueado=True
+        ).exists()
+            
+        if is_blocked:
+            return JsonResponse({
+                'error': 'Este producto está bloqueado y no puede ser asignado a proyectos.'
+            }, status=400)
+        
+        # Get available lots for this product
+        lotes = LoteProducto.objects.filter(
+            producto=producto,
+            cantidad_actual__gt=0
+        ).values('id', 'numero_lote', 'fecha_vencimiento', 'cantidad_actual')
+        
+        # Prepare the response data
+        data = {
+            'id': producto.id,
+            'nombre': producto.nombre,
+            'stock_actual': producto.stock_actual,
+            'lotes': list(lotes)
+        }
+        
+        # Convert date objects to strings for JSON serialization
+        for lote in data['lotes']:
+            if 'fecha_vencimiento' in lote and lote['fecha_vencimiento']:
+                lote['fecha_vencimiento'] = lote['fecha_vencimiento'].strftime('%Y-%m-%d')
+        
+        return JsonResponse(data)
+        
+    except Producto.DoesNotExist:
+        return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+    except Exception as e:
+        # Add a catch-all to ensure we always return a response
+        return JsonResponse({'error': f'Error al obtener información del producto: {str(e)}'}, status=500)
