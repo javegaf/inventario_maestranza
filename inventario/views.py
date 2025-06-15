@@ -1100,7 +1100,8 @@ def toggle_block_product(request, producto_id):
 
 def historial_bloqueos(request):
     """View audit history of product blocks."""
-    auditorias = AuditoriaInventario.objects.select_related('producto', 'usuario_auditor').order_by('-fecha_auditoria')
+    # Change 'fecha_auditoria' to 'fecha_inicio'
+    auditorias = AuditoriaInventario.objects.select_related('producto', 'usuario_auditor').order_by('-fecha_inicio')
     
     # Pagination
     paginator = Paginator(auditorias, 20)
@@ -1111,7 +1112,6 @@ def historial_bloqueos(request):
         'page_obj': page_obj,
         'auditorias': auditorias
     })
-
 @login_required
 def api_lotes_producto(request, producto_id):
     """API para obtener los lotes disponibles de un producto."""
