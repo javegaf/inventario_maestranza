@@ -1258,9 +1258,9 @@ def asignar_material(request, proyecto_id):
                 form.add_error('cantidad_asignada', 
                               f'No hay suficiente stock. Disponible: {producto.stock_actual}')
             else:
-                # Actualizar stock del producto
-                producto.stock_actual -= cantidad_requerida
-                producto.save()
+                # REMOVE THIS BLOCK - Don't manually update stock
+                # producto.stock_actual -= cantidad_requerida
+                # producto.save()
                 
                 # Si se seleccionó un lote, actualizar su cantidad
                 if material.lote:
@@ -1268,38 +1268,35 @@ def asignar_material(request, proyecto_id):
                     if cantidad_requerida > lote.cantidad_actual:
                         form.add_error('lote', 
                                       f'No hay suficiente cantidad en este lote. Disponible: {lote.cantidad_actual}')
-                        # Revertir cambio en producto
-                        producto.stock_actual += cantidad_requerida
-                        producto.save()
                         return render(request, 'proyectos/formulario_material.html', {
                             'form': form,
                             'proyecto': proyecto,
                             'action': 'Asignar'
                         })
                     
-                    # Actualizar lote
-                    lote.cantidad_actual -= cantidad_requerida
-                    lote.save()
+                    # Don't manually update lote either - let MovimientoInventario handle it
+                    # lote.cantidad_actual -= cantidad_requerida
+                    # lote.save()
                     
                     # Registrar en historial del lote
                     HistorialLote.objects.create(
                         lote=lote,
                         tipo_cambio='uso',
-                        cantidad_anterior=lote.cantidad_actual + cantidad_requerida,
-                        cantidad_nueva=lote.cantidad_actual,
+                        cantidad_anterior=lote.cantidad_actual,
+                        cantidad_nueva=lote.cantidad_actual - cantidad_requerida,
                         usuario=request.user,
                         observaciones=f"Asignado al proyecto: {proyecto.nombre}"
                     )
                 
-                # Registrar movimiento de inventario
+                # Registrar movimiento de inventario - this will handle all stock updates
                 MovimientoInventario.objects.create(
                     producto=producto,
                     cantidad=cantidad_requerida,
-                    tipo='salida',  # Use the correct field name
+                    tipo='salida',
                     usuario=request.user,
                     observaciones=f"Asignado al proyecto: {proyecto.nombre}",
                     lote=material.lote
-)
+                )
                 
                 # Guardar el material asignado
                 material.save()
@@ -1369,34 +1366,31 @@ def eliminar_material(request, material_id):
             print(f"DEBUG: Material deletion - Assigned: {cantidad_asignada}, Used: {cantidad_utilizada}, To Return: {cantidad_devolver}")
             
             if cantidad_devolver > 0:
-                # Return to the product's stock
-                producto.stock_actual += cantidad_devolver
-                producto.save()
+                # DON'T MANUALLY UPDATE STOCK - Remove these lines:
+                # producto.stock_actual += cantidad_devolver
+                # producto.save()
                 
-                print(f"DEBUG: Updated product stock to {producto.stock_actual}")
-                
-                # If it was assigned from a specific lot, return to that lot
+                # If it was assigned from a specific lot, don't manually update it either
                 if lote:
-                    lote.cantidad_actual += cantidad_devolver
-                    lote.save()
+                    # DON'T MANUALLY UPDATE LOTE - Remove these lines:
+                    # lote.cantidad_actual += cantidad_devolver
+                    # lote.save()
                     
-                    print(f"DEBUG: Updated lot quantity to {lote.cantidad_actual}")
-                    
-                    # Register in lot history
+                    # Register in lot history (but fix the calculation)
                     HistorialLote.objects.create(
                         lote=lote,
                         tipo_cambio='devolucion',
-                        cantidad_anterior=lote.cantidad_actual - cantidad_devolver,
-                        cantidad_nueva=lote.cantidad_actual,
+                        cantidad_anterior=lote.cantidad_actual,  # Current amount
+                        cantidad_nueva=lote.cantidad_actual + cantidad_devolver,  # What it will be after return
                         usuario=request.user,
                         observaciones=f"Devuelto del proyecto: {proyecto.nombre}"
                     )
                 
-                # Register inventory movement
+                # Register inventory movement - this will handle ALL stock updates automatically
                 MovimientoInventario.objects.create(
                     producto=producto,
                     cantidad=cantidad_devolver,
-                    tipo='entrada',  # Make sure this matches your model field
+                    tipo='entrada',  # This will trigger automatic stock increase
                     usuario=request.user,
                     observaciones=f"Devuelto del proyecto: {proyecto.nombre}",
                     lote=lote
