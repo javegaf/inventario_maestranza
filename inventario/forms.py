@@ -6,11 +6,14 @@ productos, movimientos de inventario, proveedores y kits de productos.
 
 from django.utils import timezone
 from django import forms
+from django.contrib.auth import get_user_model
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
-    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote
+    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote, HistorialPrecio,
+    Proyecto, MaterialProyecto, AuditoriaInventario
 )
 
+User = get_user_model()
 
 class ProductoForm(forms.ModelForm):
     """Formulario para crear o actualizar un producto del inventario."""
@@ -135,8 +138,16 @@ class MovimientoInventarioForm(forms.ModelForm):
 
 
 class MovimientoFiltroForm(forms.Form):
-    """Formulario para filtrar movimientos por fecha, tipo y producto."""
-
+    """Formulario para filtrar movimientos de inventario."""
+    
+    TIPO_CHOICES = [
+        ('', 'Todos los tipos'),
+        ('entrada', 'Entrada'),
+        ('salida', 'Salida'),
+        ('ajuste', 'Ajuste'),
+        ('devolucion', 'Devolución'),
+    ]
+    
     fecha_inicio = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
@@ -146,7 +157,7 @@ class MovimientoFiltroForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
     tipo_movimiento = forms.ChoiceField(
-        choices=[('', 'Todos')] + MovimientoInventario.TIPO_CHOICES,
+        choices=TIPO_CHOICES,
         required=False,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
@@ -156,6 +167,21 @@ class MovimientoFiltroForm(forms.Form):
         empty_label="Todos los productos",
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+    usuario = forms.ModelChoiceField(
+        queryset=User.objects.filter(is_active=True).order_by('username'),
+        required=False,
+        empty_label="Todos los usuarios",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show users who have created movements
+        users_with_movements = User.objects.filter(
+            movimientoinventario__isnull=False
+        ).distinct().order_by('username')
+        
+        self.fields['usuario'].queryset = users_with_movements
 
 
 class CompraProveedorForm(forms.ModelForm):
@@ -241,3 +267,142 @@ class LoteFiltroForm(forms.Form):
     estado = forms.ChoiceField(choices=ESTADO_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
     fecha_vencimiento_desde = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     fecha_vencimiento_hasta = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+
+
+class HistorialPrecioFiltroForm(forms.Form):
+    """Formulario para filtrar el historial de precios."""
+    
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        required=False,
+        empty_label="Todos los productos",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.filter(activo=True),
+        required=False,
+        empty_label="Todos los proveedores",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    fecha_desde = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    
+    fecha_hasta = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+
+
+class RegistroPrecioManualForm(forms.ModelForm):
+    """Formulario para registrar precios manualmente sin compra."""
+    
+    class Meta:
+        model = HistorialPrecio
+        fields = ['producto', 'precio_unitario', 'proveedor', 'observaciones']
+        widgets = {
+            'producto': forms.Select(attrs={'class': 'form-control'}),
+            'precio_unitario': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0',
+                'placeholder': 'Ej: 25.50'
+            }),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['proveedor'].required = False
+        self.fields['observaciones'].help_text = 'Motivo del registro de precio (ej: cotización, precio de mercado, etc.)'
+        self.fields['observaciones'].required = True
+
+
+class ProyectoForm(forms.ModelForm):
+    """Formulario para crear y editar proyectos."""
+    
+    class Meta:
+        model = Proyecto
+        fields = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin_estimada', 
+                  'responsable', 'estado', 'notas']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_fin_estimada': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'responsable': forms.Select(attrs={'class': 'form-select'}),
+            'estado': forms.Select(attrs={'class': 'form-select'}),
+            'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class MaterialProyectoForm(forms.ModelForm):
+    """Formulario para asignar materiales a proyectos."""
+    
+    class Meta:
+        model = MaterialProyecto
+        fields = ['producto', 'cantidad_asignada', 'lote', 'notas']
+        widgets = {
+            'producto': forms.Select(attrs={'class': 'form-select'}),
+            'cantidad_asignada': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'lote': forms.Select(attrs={'class': 'form-select'}),
+            'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.proyecto = kwargs.pop('proyecto', None)
+        super().__init__(*args, **kwargs)
+        
+        # Get IDs of blocked products through AuditoriaInventario
+        blocked_product_ids = AuditoriaInventario.objects.filter(
+            bloqueado=True
+        ).values_list('producto_id', flat=True)
+        
+        # Filter products with stock available and not blocked
+        self.fields['producto'].queryset = Producto.objects.filter(
+            stock_actual__gt=0
+        ).exclude(
+            id__in=blocked_product_ids
+        )
+        
+        # Inicialmente deshabilitar el campo de lote
+        self.fields['lote'].queryset = LoteProducto.objects.none()
+        self.fields['lote'].required = False
+        
+        # Si ya hay un producto seleccionado (por ejemplo, al editar)
+        if 'producto' in self.data:
+            try:
+                producto_id = int(self.data.get('producto'))
+                self.fields['lote'].queryset = LoteProducto.objects.filter(
+                    producto_id=producto_id,
+                    cantidad_actual__gt=0
+                )
+            except (ValueError, TypeError):
+                pass
+        elif self.instance.pk and self.instance.producto:
+            self.fields['lote'].queryset = LoteProducto.objects.filter(
+                producto=self.instance.producto,
+                cantidad_actual__gt=0
+            )
+
+
+class ActualizarUsoMaterialForm(forms.ModelForm):
+    """Formulario para actualizar la cantidad utilizada de un material en un proyecto."""
+    
+    class Meta:
+        model = MaterialProyecto
+        fields = ['cantidad_utilizada', 'notas']
+        widgets = {
+            'cantidad_utilizada': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields['cantidad_utilizada'].widget.attrs['max'] = self.instance.cantidad_asignada
+            self.fields['cantidad_utilizada'].help_text = f'Máximo: {self.instance.cantidad_asignada}'

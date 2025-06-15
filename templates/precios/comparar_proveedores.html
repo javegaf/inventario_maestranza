@@ -1,0 +1,231 @@
+{# /templates/precios/comparar_proveedores.html #}
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Comparar Precios entre Proveedores{% endblock %}
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/inventario/precios/">Historial de Precios</a></li>
+                <li class="breadcrumb-item active">Comparar Proveedores</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-bar-chart"></i> Comparar Precios entre Proveedores</h2>
+    </div>
+</div>
+
+<!-- Product Selection -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-search"></i> Seleccionar Producto</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="producto" class="form-label">Producto:</label>
+                <select name="producto" class="form-control" onchange="this.form.submit()">
+                    <option value="">Seleccione un producto</option>
+                    {% for prod in productos %}
+                        <option value="{{ prod.id }}" {% if request.GET.producto == prod.id|stringformat:"s" %}selected{% endif %}>
+                            {{ prod.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_desde" class="form-label">Fecha desde:</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_hasta" class="form-label">Fecha hasta:</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if producto %}
+<!-- Comparison Results -->
+<div class="row mb-4">
+    <div class="col">
+        <h3>Comparación de Precios: {{ producto.nombre }}</h3>
+        <p class="text-muted">{{ producto.descripcion }}</p>
+    </div>
+</div>
+
+{% if comparison_stats %}
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h6>Mejor Precio</h6>
+                <h4>${{ comparison_stats.precio_menor|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h6>Precio Mayor</h6>
+                <h4>${{ comparison_stats.precio_mayor|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h6>Precio Promedio</h6>
+                <h4>${{ comparison_stats.precio_promedio_mercado|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h6>Diferencia Máxima</h6>
+                <h4>${{ comparison_stats.diferencia_extremos|floatformat:2 }}</h4>
+                <small>({{ comparison_stats.porcentaje_diferencia|floatformat:1 }}%)</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Providers Comparison Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Comparación por Proveedor</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Posición</th>
+                        <th>Proveedor</th>
+                        <th>Precio Actual</th>
+                        <th>Precio Promedio</th>
+                        <th>Última Actualización</th>
+                        <th>Diferencia vs Mejor</th>
+                        <th>Diferencia vs Promedio</th>
+                        <th>Registros</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio_data in precios_proveedores %}
+                    <tr class="{% if precio_data.es_mejor_precio %}table-success{% endif %}">
+                        <td>
+                            <span class="badge {% if forloop.counter == 1 %}bg-success{% elif forloop.counter == 2 %}bg-warning{% elif forloop.counter == 3 %}bg-info{% else %}bg-secondary{% endif %}">
+                                #{{ forloop.counter }}
+                            </span>
+                            {% if precio_data.es_mejor_precio %}
+                                <i class="bi bi-trophy text-warning ms-1" title="Mejor precio"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ precio_data.proveedor.nombre }}</strong>
+                            {% if precio_data.proveedor.telefono %}
+                                <br><small class="text-muted">{{ precio_data.proveedor.telefono }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="h5 {% if precio_data.es_mejor_precio %}text-success{% else %}text-primary{% endif %}">
+                                ${{ precio_data.precio_actual|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-info">${{ precio_data.precio_promedio|floatformat:2 }}</span>
+                        </td>
+                        <td>
+                            {{ precio_data.fecha|date:"d/m/Y" }}
+                            <br><small class="text-muted">{{ precio_data.fecha|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if precio_data.ahorro_vs_menor > 0 %}
+                                <span class="text-danger">
+                                    +${{ precio_data.ahorro_vs_menor|floatformat:2 }}
+                                </span>
+                            {% else %}
+                                <span class="text-success">
+                                    <i class="bi bi-check-circle"></i> Mejor precio
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio_data.diferencia_promedio > 0 %}
+                                <span class="text-danger">
+                                    <i class="bi bi-arrow-up"></i> +${{ precio_data.diferencia_promedio|floatformat:2 }}
+                                </span>
+                            {% elif precio_data.diferencia_promedio < 0 %}
+                                <span class="text-success">
+                                    <i class="bi bi-arrow-down"></i> ${{ precio_data.diferencia_promedio|floatformat:2 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">
+                                    <i class="bi bi-dash"></i> Promedio
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ precio_data.total_registros }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="/inventario/precios/proveedor/{{ precio_data.proveedor.id }}/" 
+                                   class="btn btn-outline-primary" title="Ver historial del proveedor">
+                                    <i class="bi bi-building"></i>
+                                </a>
+                                {% if precio_data.compra %}
+                                <a href="/inventario/proveedores/{{ precio_data.proveedor.id }}/" 
+                                   class="btn btn-outline-success" title="Ver detalles del proveedor">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No se encontraron precios de proveedores para este producto.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if precios_proveedores %}
+<!-- Recommendations -->
+<div class="alert alert-info mt-4">
+    <h6><i class="bi bi-lightbulb"></i> Recomendaciones:</h6>
+    <ul class="mb-0">
+        {% for precio_data in precios_proveedores %}
+            {% if precio_data.es_mejor_precio %}
+                <li><strong>{{ precio_data.proveedor.nombre }}</strong> ofrece el mejor precio (${{ precio_data.precio_actual|floatformat:2 }})</li>
+            {% endif %}
+        {% endfor %}
+        {% if comparison_stats.diferencia_extremos > 0 %}
+            <li>Puedes ahorrar hasta ${{ comparison_stats.diferencia_extremos|floatformat:2 }} ({{ comparison_stats.porcentaje_diferencia|floatformat:1 }}%) eligiendo el mejor proveedor</li>
+        {% endif %}
+    </ul>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

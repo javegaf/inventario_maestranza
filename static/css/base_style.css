@@ -98,3 +98,14 @@
     border: 1px solid #0d6efd;
     color: #0d6efd;
 }
+
+/* Botón de proyectos (blanco en oscuro, gris en claro) */
+[data-bs-theme="dark"] .btn-proyectos {
+    border: 1px solid #ffffff;
+    color: #ffffff;
+}
+
+[data-bs-theme="light"] .btn-proyectos {
+    border: 1px solid #6c757d;
+    color: #6c757d;
+}

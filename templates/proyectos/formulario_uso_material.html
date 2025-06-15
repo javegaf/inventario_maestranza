@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrar Uso de Material - {{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-tools"></i> Registrar Uso de Material</h2>
+        <p class="text-muted">Proyecto: {{ proyecto.nombre }}</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Información del Material</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Producto:</strong> {{ material.producto.nombre }}</p>
+                <p><strong>Cantidad Asignada:</strong> {{ material.cantidad_asignada }}</p>
+                <p><strong>Cantidad Ya Utilizada:</strong> {{ material.cantidad_utilizada }}</p>
+            </div>
+            <div class="col-md-6">
+                <p>
+                    <strong>Lote:</strong> 
+                    {% if material.lote %}
+                        {{ material.lote.numero_lote }}
+                        <br>
+                        <small class="text-muted">Vence: {{ material.lote.fecha_vencimiento|date:"d/m/Y" }}</small>
+                    {% else %}
+                        <span class="text-muted">Sin lote específico</span>
+                    {% endif %}
+                </p>
+                <p><strong>Disponible:</strong> {{ material.cantidad_disponible }}</p>
+                <div class="progress mb-2">
+                    <div class="progress-bar {% if material.porcentaje_utilizado >= 75 %}bg-warning{% endif %} {% if material.porcentaje_utilizado == 100 %}bg-success{% endif %}" role="progressbar" style="width: {{ material.porcentaje_utilizado }}%" aria-valuenow="{{ material.porcentaje_utilizado }}" aria-valuemin="0" aria-valuemax="100">{{ material.porcentaje_utilizado|floatformat:0 }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="{{ form.cantidad_utilizada.id_for_label }}" class="form-label">Cantidad Utilizada (total):</label>
+                {{ form.cantidad_utilizada }}
+                {% if form.cantidad_utilizada.errors %}
+                    <div class="text-danger">{{ form.cantidad_utilizada.errors }}</div>
+                {% endif %}
+                <div class="form-text">Ingrese la cantidad TOTAL utilizada hasta el momento, no solo lo utilizado en esta ocasión.</div>
+                <div class="form-text text-danger">Máximo: {{ material.cantidad_asignada }} unidades</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.notas.id_for_label }}" class="form-label">Notas/Observaciones:</label>
+                {{ form.notas }}
+                {% if form.notas.errors %}
+                    <div class="text-danger">{{ form.notas.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">Actualizar Uso</button>
+                <a href="{% url 'inventario:detalle_proyecto' proyecto.id %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

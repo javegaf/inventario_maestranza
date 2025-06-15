@@ -44,7 +44,7 @@
             
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">{{ action }} Lote</button>
-                <a href="{% url 'detalle_producto_lotes' producto.id %}" class="btn btn-secondary">Cancelar</a>
+                <a href="{% url 'inventario:detalle_producto_lotes' producto.id %}" class="btn btn-secondary">Cancelar</a>
             </div>
         </form>
     </div>
