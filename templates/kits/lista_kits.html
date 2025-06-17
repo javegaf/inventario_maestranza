@@ -1,13 +1,84 @@
-{# /templates/kits/lista_kits.html #}
 {% extends 'base.html' %}
+{% load static %}
+
 {% block title %}Kits de Productos{% endblock %}
+
 {% block content %}
-<h2>Kits disponibles</h2>
-<ul class="list-group">
-    {% for kit in kits %}
-    <li class="list-group-item">
-        {{ kit.nombre }} - Contiene: {{ kit.productos.all|join:", " }}
-    </li>
-    {% endfor %}
-</ul>
+<div class="container mt-4">
+  <h2>Kits de Productos</h2>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <input type="text" id="buscar" class="form-control w-50" placeholder="Buscar kit...">
+    {% if user.is_staff %}
+      <a href="{% url 'inventario:crear_kit' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle-fill"></i> Crear Kit
+      </a>
+    {% else %}
+      <button class="btn btn-secondary" onclick="showPermissionDenied()">
+        <i class="bi bi-plus-circle"></i> Crear Kit
+      </button>
+    {% endif %}
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered" id="tabla-kits">
+      <thead class="table-dark">
+        <tr>
+          <th>Nombre del Kit</th>
+          <th>Productos</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for kit in kits %}
+        <tr>
+          <td>{{ kit.nombre }}</td>
+          <td>{{ kit.productos.all|join:", " }}</td>
+          <td class="text-center">
+            <a href="{% url 'inventario:editar_kit' kit.id %}" class="btn btn-sm btn-primary me-2">
+              <i class="bi bi-pencil-fill"></i> Editar
+            </a>
+            <a href="{% url 'inventario:eliminar_kit' kit.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar este kit?');">
+              <i class="bi bi-trash-fill"></i> Eliminar
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación si se implementa en views -->
+  {% if is_paginated %}
+    <nav aria-label="Paginación">
+      <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+          </li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("buscar").addEventListener("keyup", function () {
+    const filtro = this.value.toLowerCase();
+    document.querySelectorAll("#tabla-kits tbody tr").forEach(function (fila) {
+      const texto = fila.textContent.toLowerCase();
+      fila.style.display = texto.includes(filtro) ? "" : "none";
+    });
+  });
+</script>
 {% endblock %}

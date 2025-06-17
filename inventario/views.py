@@ -6,6 +6,7 @@ movimientos, proveedores, kits, alertas, reportes y precios.
 import csv
 import datetime
 import logging
+import json
 
 from io import BytesIO
 
@@ -24,14 +25,14 @@ from django.utils import timezone
 from xhtml2pdf import pisa
 
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto,
+    Producto, MovimientoInventario, Proveedor, KitProducto, ProductoEnKit,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
-    MovimientoFiltroForm, ProveedorForm, KitProductoForm,
-    CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm
+    MovimientoFiltroForm, ProveedorForm, KitProductoForm, ProductoEnKitForm,
+    CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm, ProductoEnKitFormSet
 )
 
 logger = logging.getLogger(__name__)
@@ -106,8 +107,13 @@ def lista_movimientos(request):
         if form.cleaned_data.get('producto'):
             movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
 
+    paginator = Paginator(movimientos, 10)  # 10 movimientos por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
+        'page_obj': page_obj,    
         'filtro_form': form,
         'show_permission_alert': show_permission_alert
     })
@@ -352,15 +358,15 @@ def enviar_alerta_automatica(alertas):
 # Kits
 
 def lista_kits(request):
-    kits = KitProducto.objects.all()
-    return render(request, 'kits/lista_kits.html', {'kits': kits})
+    kits_list = KitProducto.objects.prefetch_related('productos').all().order_by('nombre')
+    paginator = Paginator(kits_list, 5)  # 5 kits por página
 
-def crear_kit(request):
-    form = KitProductoForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        return redirect('lista_kits')
-    return render(request, 'kits/formulario_kit.html', {'form': form})
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'kits/lista_kits.html', {'kits': page_obj,
+    'page_obj': page_obj,
+    'is_paginated': page_obj.has_other_pages()})
 
 # Reportes
 
@@ -642,3 +648,107 @@ def api_producto_lotes(request, producto_id):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+def crear_kit(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        productos_json = request.POST.get('productos_json', '')
+
+        if not nombre:
+            messages.error(request, "El nombre del kit es obligatorio.")
+            return render(request, 'kits/crear_kit.html', {'productos': Producto.objects.all()})
+
+        if not productos_json:
+            messages.error(request, "Debes agregar al menos un producto al kit.")
+            return render(request, 'kits/crear_kit.html', {'productos': Producto.objects.all()})
+
+        try:
+            productos_data = json.loads(productos_json)
+        except json.JSONDecodeError:
+            messages.error(request, "Hubo un error al procesar los productos del kit.")
+            return render(request, 'kits/crear_kit.html', {'productos': Producto.objects.all()})
+
+        if not productos_data:
+            messages.error(request, "El kit debe contener al menos un producto.")
+            return render(request, 'kits/crear_kit.html', {'productos': Producto.objects.all()})
+
+        # Guardar Kit y productos relacionados
+        kit = KitProducto.objects.create(nombre=nombre)
+        for p in productos_data:
+            producto_id = p.get('id')
+            cantidad = p.get('cantidad', 0)
+            if not producto_id or int(cantidad) < 1:
+                continue  # skip datos inválidos
+
+            try:
+                producto = Producto.objects.get(pk=producto_id)
+                ProductoEnKit.objects.create(kit=kit, producto=producto, cantidad=cantidad)
+            except Producto.DoesNotExist:
+                continue  # skip productos inválidos
+
+        messages.success(request, "Kit creado correctamente.")
+        return redirect('inventario:lista_kits')  # Ajusta esta URL a la vista donde se listan tus kits
+
+    productos = Producto.objects.all()
+    return render(request, 'kits/crear_kit.html', {'productos': productos})
+    
+def editar_kit(request, kit_id):
+    kit = get_object_or_404(KitProducto, id=kit_id)
+
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        productos_data = request.POST.get('productos_json')  # JSON con productos y cantidades
+
+        if not nombre or not productos_data:
+            messages.error(request, "Debe ingresar un nombre y al menos un producto.")
+            return redirect('inventario:editar_kit', kit_id=kit.id)
+
+        try:
+            productos_json = json.loads(productos_data)
+        except json.JSONDecodeError:
+            messages.error(request, "Error al leer los productos seleccionados.")
+            return redirect('inventario:editar_kit', kit_id=kit.id)
+
+        kit.nombre = nombre
+        kit.save()
+
+        ProductoEnKit.objects.filter(kit=kit).delete()
+
+        for item in productos_json:
+            producto_id = item.get('id')  # ojo con 'id', no 'producto_id'
+            cantidad = item.get('cantidad')
+            if not producto_id or int(cantidad) <= 0:
+                continue
+            producto = get_object_or_404(Producto, id=producto_id)
+            ProductoEnKit.objects.create(kit=kit, producto=producto, cantidad=int(cantidad))
+
+        messages.success(request, "Kit actualizado correctamente.")
+        return redirect('inventario:lista_kits')
+
+    # GET
+    productos = Producto.objects.all()
+    productos_en_kit = ProductoEnKit.objects.filter(kit=kit).select_related('producto')
+
+    # Generamos el JSON inicial para que lo use el JS
+    componentes_json = json.dumps([
+        {
+            'id': item.producto.id,
+            'nombre': item.producto.nombre,
+            'cantidad': item.cantidad
+        } for item in productos_en_kit
+    ])
+
+    contexto = {
+        'kit': kit,
+        'productos': productos,
+        'productos_en_kit': productos_en_kit,
+        'componentes_json': componentes_json,  # <-- Este era el que faltaba
+    }
+    return render(request, 'kits/editar_kit.html', contexto)
+    
+def eliminar_kit(request, pk):
+    kit = get_object_or_404(KitProducto, pk=pk)
+    if request.method == 'POST':
+        kit.delete()
+        return redirect('inventario:lista_kits')
+    return render(request, 'kits/eliminar_kit.html', {'kit': kit})

@@ -6,11 +6,13 @@ productos, movimientos de inventario, proveedores y kits de productos.
 
 from django.utils import timezone
 from django import forms
+from django_select2.forms import ModelSelect2Widget
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
-    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote
+    CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote, ProductoEnKit
 )
-
+from django_select2.forms import ModelSelect2MultipleWidget
+from django.forms import modelformset_factory, inlineformset_factory
 
 class ProductoForm(forms.ModelForm):
     """Formulario para crear o actualizar un producto del inventario."""
@@ -191,15 +193,6 @@ class ProveedorForm(forms.ModelForm):
         model = Proveedor
         fields = '__all__'
 
-
-class KitProductoForm(forms.ModelForm):
-    """Formulario para crear kits de productos."""
-
-    class Meta:
-        model = KitProducto
-        fields = '__all__'
-
-
 class LoteProductoForm(forms.ModelForm):
     """Formulario para crear/editar lotes de productos."""
     
@@ -241,3 +234,26 @@ class LoteFiltroForm(forms.Form):
     estado = forms.ChoiceField(choices=ESTADO_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
     fecha_vencimiento_desde = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     fecha_vencimiento_hasta = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    
+class KitProductoForm(forms.ModelForm):
+    class Meta:
+        model = KitProducto
+        fields = ['nombre']
+
+class ProductoEnKitForm(forms.ModelForm):
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select producto-select'})
+    )
+    cantidad = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={'class': 'form-control'}))
+
+    class Meta:
+        model = ProductoEnKit
+        fields = ['producto', 'cantidad']
+
+ProductoEnKitFormSet = modelformset_factory(
+    ProductoEnKit,
+    form=ProductoEnKitForm,
+    extra=10,  # Número de productos posibles a agregar
+    can_delete=True
+)
