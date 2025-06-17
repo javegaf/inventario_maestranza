@@ -138,8 +138,10 @@
                                 {{ proyecto.fecha_fin_estimada|date:"d/m/Y" }}
                                 {% if proyecto.dias_restantes is not None and proyecto.estado != 'completado' %}
                                     <br>
-                                    <small class="{% if proyecto.dias_restantes <= 7 %}text-danger{% elif proyecto.dias_restantes <= 14 %}text-warning{% else %}text-muted{% endif %}">
-                                        {% if proyecto.dias_restantes == 0 %}
+                                    <small class="{% if proyecto.dias_restantes < 0 %}text-danger{% elif proyecto.dias_restantes == 0 %}text-danger{% elif proyecto.dias_restantes <= 7 %}text-warning{% else %}text-muted{% endif %}">
+                                        {% if proyecto.dias_restantes < 0 %}
+                                            Vencido ({{ proyecto.dias_restantes|floatformat:0|slice:"1:" }} días)
+                                        {% elif proyecto.dias_restantes == 0 %}
                                             ¡Vence hoy!
                                         {% else %}
                                             {{ proyecto.dias_restantes }} días restantes

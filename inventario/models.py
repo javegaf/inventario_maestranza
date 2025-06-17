@@ -446,8 +446,9 @@ class Proyecto(models.Model):
         if self.estado == 'completado':
             return 0
         
+        # Allow negative values to indicate overdue projects
         dias = (self.fecha_fin_estimada - timezone.now().date()).days
-        return max(0, dias)
+        return dias  # Remove the max(0, dias) to allow negative values
     
     @property
     def progreso(self):
