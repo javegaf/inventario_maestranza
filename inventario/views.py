@@ -24,19 +24,21 @@ from django.contrib import messages
 from django.utils import timezone
 from xhtml2pdf import pisa
 from django.contrib.auth.decorators import login_required, user_passes_test
+from .utils import exportar_pdf_inventario, exportar_excel_inventario
+
 
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
-    Proyecto, MaterialProyecto, ConfiguracionSistema
+    Proyecto, MaterialProyecto, ConfiguracionSistema, AuditoriaInformeInventario
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
     MovimientoFiltroForm, ProveedorForm, KitProductoForm,
     CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
     HistorialPrecioFiltroForm, RegistroPrecioManualForm, ProyectoForm,
-    MaterialProyectoForm, ActualizarUsoMaterialForm, ConfiguracionSistemaForm  # Add these imports
+    MaterialProyectoForm, ActualizarUsoMaterialForm, ConfiguracionSistemaForm, InformeInventarioFiltroForm
 )
 
 logger = logging.getLogger(__name__)
@@ -1477,3 +1479,63 @@ def configuracion_sistema(request):
         form = ConfiguracionSistemaForm()
 
     return render(request, 'configuracion/configuracion.html', {'form': form})
+
+@login_required
+def informe_inventario(request):
+    form = InformeInventarioFiltroForm(request.GET or None)
+    productos = Producto.objects.all()
+
+    if form.is_valid():
+        ubicacion = form.cleaned_data.get('ubicacion')
+        categoria = form.cleaned_data.get('categoria')
+        proveedor = form.cleaned_data.get('proveedor')
+        stock_min = form.cleaned_data.get('stock_min')
+        stock_max = form.cleaned_data.get('stock_max')
+        fecha_inicio = form.cleaned_data.get('fecha_inicio')
+        fecha_fin = form.cleaned_data.get('fecha_fin')
+
+        if ubicacion:
+            productos = productos.filter(ubicacion=ubicacion)
+        if categoria:
+            productos = productos.filter(categoria=categoria)
+        if proveedor:
+            productos = productos.filter(proveedor__nombre=proveedor)
+        if stock_min is not None:
+            productos = productos.filter(stock_actual__gte=stock_min)
+        if stock_max is not None:
+            productos = productos.filter(stock_actual__lte=stock_max)
+        if fecha_inicio:
+            productos = productos.filter(fecha_ingreso__date__gte=fecha_inicio)
+        if fecha_fin:
+            productos = productos.filter(fecha_ingreso__date__lte=fecha_fin)
+
+    datos_categoria = productos.values('categoria').annotate(total=Count('id')).order_by('categoria')
+    labels = [dato['categoria'] or 'Sin categoría' for dato in datos_categoria]
+    valores = [dato['total'] for dato in datos_categoria]
+
+    export = request.GET.get('export')
+    if export == 'pdf':
+        AuditoriaInformeInventario.objects.create(
+            usuario=request.user,
+            tipo_exportacion='PDF',
+            filtros_aplicados=request.GET.urlencode(),
+            total_registros=productos.count()
+        )
+        return exportar_pdf_inventario(productos, request)
+    elif export == 'excel':
+        AuditoriaInformeInventario.objects.create(
+            usuario=request.user,
+            tipo_exportacion='Excel',
+            filtros_aplicados=request.GET.urlencode(),
+            total_registros=productos.count()
+        )
+        return exportar_excel_inventario(productos)
+
+    contexto = {
+        'form': form,
+        'productos_filtrados': productos,
+        'datos_categoria': list(datos_categoria),
+        'labels': labels,
+        'valores': valores,
+    }
+    return render(request, 'reportes/informe_inventario.html', contexto)
