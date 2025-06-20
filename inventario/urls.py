@@ -34,6 +34,8 @@ urlpatterns = [
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),
     path('reportes/exportar/pdf/', views.exportar_pdf, name='exportar_pdf'),
+    path('reportes/informe-personalizado/', views.informe_inventario, name='informe_inventario'),
+
 
     path('precios/', views.historial_precios, name='historial_precios'),
     path('precios/producto/<int:producto_id>/', views.historial_precios_producto, name='historial_precios_producto'),
