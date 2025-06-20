@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load inventario_extras %}
 
 {% block title %}{{ proyecto.nombre }}{% endblock %}
 
@@ -87,7 +88,7 @@
             <div class="col-md-6">
                 <div class="card bg-success text-white h-100">
                     <div class="card-body">
-                        <h3 class="card-title">${{ stats.costo_total|floatformat:2 }}</h3>
+                        <h3 class="card-title">{{ stats.costo_total|clp }}</h3>
                         <p class="card-text">Costo Total Estimado</p>
                     </div>
                 </div>
@@ -181,7 +182,7 @@
                             </div>
                         </td>
                         <td>
-                            <span class="text-success">${{ material.costo_total|floatformat:2 }}</span>
+                            <span class="text-success">{{ material.costo_total|clp }}</span>
                         </td>
                         <td>
                             <div class="btn-group">

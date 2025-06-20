@@ -58,3 +58,14 @@ def subtract(value, arg):
 def sub(value, arg):
     """Subtract the arg from the value."""
     return value - arg
+
+@register.filter
+def clp(value):
+    """
+    Formatea un valor numérico como CLP: con separadores de miles y sin decimales.
+    Ejemplo: 7979419.56 → $7.979.420
+    """
+    try:
+        return "${:,.0f}".format(float(value)).replace(",", ".")
+    except (ValueError, TypeError):
+        return "$0"
