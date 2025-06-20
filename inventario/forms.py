@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialLote, HistorialPrecio,
-    Proyecto, MaterialProyecto, AuditoriaInventario
+    Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema
 )
 
 User = get_user_model()
@@ -406,3 +406,81 @@ class ActualizarUsoMaterialForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['cantidad_utilizada'].widget.attrs['max'] = self.instance.cantidad_asignada
             self.fields['cantidad_utilizada'].help_text = f'Máximo: {self.instance.cantidad_asignada}'
+
+# ────────────────────────────────────────────────────────────────────────────────
+# FORMULARIO: Configuración del Sistema
+# ────────────────────────────────────────────────────────────────────────────────
+
+class ConfiguracionSistemaForm(forms.Form):
+    umbral_stock_critico = forms.IntegerField(
+        label="Umbral de Stock Crítico",
+        min_value=1, max_value=100, initial=10,
+        help_text="Nivel bajo crítico para activar alertas urgentes.",
+    )
+    umbral_stock_bajo = forms.IntegerField(
+        label="Umbral de Stock Bajo",
+        min_value=1, max_value=100, initial=30,
+        help_text="Nivel de stock bajo recomendado para reorden.",
+    )
+    modo_mantenimiento = forms.BooleanField(
+        label="Modo Mantenimiento", required=False,
+        help_text="Habilita o deshabilita el modo de mantenimiento.",
+    )
+    auto_generar_orden_compra = forms.BooleanField(
+        label="Generar Orden de Compra Automáticamente", required=False,
+        help_text="Activa la generación automática de órdenes de compra.",
+    )
+    proveedor_default = forms.CharField(
+        label="Proveedor Predeterminado",
+        max_length=100, required=True,
+        help_text="Nombre del proveedor por defecto.",
+    )
+    registro_de_auditorias = forms.BooleanField(
+        label="Activar Registro de Auditorías", required=False,
+        help_text="Activa el registro de acciones en el sistema.",
+    )
+    mostrar_mensaje_bienvenida = forms.BooleanField(
+        label="Mostrar Mensaje de Bienvenida", required=False,
+        help_text="Muestra un mensaje al ingresar al sistema.",
+    )
+    formato_fecha_preferido = forms.ChoiceField(
+        label="Formato de Fecha Preferido",
+        choices=[
+            ("%d/%m/%Y", "DD/MM/AAAA"),
+            ("%m/%d/%Y", "MM/DD/AAAA"),
+            ("%Y-%m-%d", "AAAA-MM-DD"),
+        ],
+        help_text="Formato de fecha que se mostrará en reportes.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        configuraciones = {cfg.clave: cfg.valor for cfg in ConfiguracionSistema.objects.all()}
+        for clave in self.fields:
+            if clave in configuraciones:
+                valor = configuraciones[clave]
+                campo = self.fields[clave]
+                if isinstance(campo, forms.BooleanField):
+                    campo.initial = valor in ["True", "true", "1"]
+                elif isinstance(campo, forms.IntegerField):
+                    try:
+                        campo.initial = int(valor)
+                    except ValueError:
+                        campo.initial = campo.initial
+                else:
+                    campo.initial = valor
+
+    def clean(self):
+        cleaned_data = super().clean()
+        critico = cleaned_data.get('umbral_stock_critico')
+        bajo = cleaned_data.get('umbral_stock_bajo')
+        if critico is not None and bajo is not None and critico >= bajo:
+            raise forms.ValidationError("El umbral crítico debe ser menor que el umbral bajo.")
+        return cleaned_data
+
+    def guardar(self):
+        for clave, valor in self.cleaned_data.items():
+            ConfiguracionSistema.objects.update_or_create(
+                clave=clave,
+                defaults={"valor": str(valor)},
+            )
