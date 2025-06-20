@@ -23,19 +23,20 @@ from django.conf import settings
 from django.contrib import messages
 from django.utils import timezone
 from xhtml2pdf import pisa
+from django.contrib.auth.decorators import login_required, user_passes_test
 
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
-    Proyecto, MaterialProyecto
+    Proyecto, MaterialProyecto, ConfiguracionSistema
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
     MovimientoFiltroForm, ProveedorForm, KitProductoForm,
     CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
     HistorialPrecioFiltroForm, RegistroPrecioManualForm, ProyectoForm,
-    MaterialProyectoForm, ActualizarUsoMaterialForm  # Add these imports
+    MaterialProyectoForm, ActualizarUsoMaterialForm, ConfiguracionSistemaForm  # Add these imports
 )
 
 logger = logging.getLogger(__name__)
@@ -1461,3 +1462,18 @@ def api_producto_info(request, producto_id):
     except Exception as e:
         # Add a catch-all to ensure we always return a response
         return JsonResponse({'error': f'Error al obtener información del producto: {str(e)}'}, status=500)
+
+def configuracion_sistema(request):
+    """Vista para mostrar y actualizar las configuraciones generales del sistema."""
+    if request.method == 'POST':
+        form = ConfiguracionSistemaForm(request.POST)
+        if form.is_valid():
+            form.guardar()
+            messages.success(request, 'Configuración actualizada correctamente.')
+            return redirect('inventario:configuracion_sistema')
+        else:
+            messages.error(request, 'Por favor corrige los errores del formulario.')
+    else:
+        form = ConfiguracionSistemaForm()
+
+    return render(request, 'configuracion/configuracion.html', {'form': form})
