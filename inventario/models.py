@@ -552,3 +552,19 @@ class ConfiguracionSistema(models.Model):
     def __str__(self):
         """Retorna una representación legible del parámetro configurado."""
         return f"{self.get_clave_display()}: {self.valor}"
+
+class AuditoriaInformeInventario(models.Model):
+    """Auditoría de generación de informes de inventario (PDF o Excel)."""
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    filtros_aplicados = models.TextField(help_text="Filtros usados al generar el informe (formato JSON o texto plano).")
+    tipo_exportacion = models.CharField(
+        max_length=10,
+        choices=[('pdf', 'PDF'), ('excel', 'Excel')],
+        help_text="Formato en que se exportó el informe."
+    )
+    total_registros = models.PositiveIntegerField(help_text="Cantidad de productos exportados.")
+
+    def __str__(self):
+        return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
