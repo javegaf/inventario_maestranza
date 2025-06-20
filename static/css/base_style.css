@@ -168,12 +168,12 @@
 }
 
 [data-bs-theme="light"] .btn-configuracion {
-    border-color: #212529;
-    color: #212529;
+    border-color: #6c757d;
+    color: #6c757d;
     background-color: transparent;
 }
 
 [data-bs-theme="light"] .btn-configuracion:hover {
-    background-color: #212529;
+    background-color: #6c757d;
     color: #fff;
 }
