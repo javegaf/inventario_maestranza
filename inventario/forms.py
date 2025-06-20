@@ -484,3 +484,58 @@ class ConfiguracionSistemaForm(forms.Form):
                 clave=clave,
                 defaults={"valor": str(valor)},
             )
+class InformeInventarioFiltroForm(forms.Form):
+    ubicacion = forms.ChoiceField(required=False, label='Ubicación')
+    categoria = forms.ChoiceField(required=False, choices=[], label='Categoría')
+    proveedor = forms.ChoiceField(required=False, label='Proveedor')
+    stock_min = forms.IntegerField(required=False, label='Stock mínimo (desde)')
+    stock_max = forms.IntegerField(required=False, label='Stock máximo (hasta)')
+    
+    # Estos quedan en el formulario, pero no se mostrarán de momento
+    fecha_inicio = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    fecha_fin = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Opciones dinámicas
+        categorias = (
+            Producto.objects
+            .values_list('categoria', flat=True)
+            .exclude(categoria__isnull=True)
+            .exclude(categoria__exact='')
+            .distinct()
+            .order_by('categoria')
+        )
+        ubicaciones = (
+            Producto.objects
+            .values_list('ubicacion', flat=True)
+            .exclude(ubicacion__isnull=True)
+            .exclude(ubicacion__exact='')
+            .distinct()
+            .order_by('ubicacion')
+        )
+        proveedores = (
+            Producto.objects
+            .filter(proveedor__isnull=False)
+            .values_list('proveedor__id', 'proveedor__nombre')
+            .distinct()
+            .order_by('proveedor__nombre')
+        )
+
+        self.fields['categoria'].choices = [('', 'Todas')] + [(c, c) for c in categorias]
+        self.fields['ubicacion'].choices = [('', 'Todas')] + [(u, u) for u in ubicaciones]
+        self.fields['proveedor'].choices = [('', 'Todos')] + [(str(p[0]), p[1]) for p in proveedores]
+
+    def clean_stock_min(self):
+        valor = self.cleaned_data.get('stock_min')
+        if valor is not None and valor < 0:
+            raise forms.ValidationError("El stock mínimo no puede ser negativo.")
+        return None if valor == 0 else valor
+
+    def clean_stock_max(self):
+        valor = self.cleaned_data.get('stock_max')
+        if valor is not None and valor < 0:
+            raise forms.ValidationError("El stock máximo no puede ser negativo.")
+        return None if valor == 0 else valor
+    
