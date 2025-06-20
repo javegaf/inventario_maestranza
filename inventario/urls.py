@@ -62,4 +62,6 @@ urlpatterns = [
     path('proyectos/materiales/<int:material_id>/uso/', views.actualizar_uso_material, name='actualizar_uso_material'),
     path('proyectos/materiales/<int:material_id>/eliminar/', views.eliminar_material, name='eliminar_material'),
     path('api/productos/<int:producto_id>/info/', views.api_producto_info, name='api_producto_info'),
+
+    path('configuracion/', views.configuracion_sistema, name='configuracion_sistema'),
 ]
