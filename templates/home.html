@@ -77,5 +77,27 @@
     </div>
   </div>
 
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-tools display-4 icon-proyectos"></i>
+        <h5 class="card-title mt-2">Proyectos</h5>
+        <a href="{% url 'inventario:listar_proyectos' %}" class="btn btn-proyectos w-100 mt-2">Ver Proyectos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-gear-fill display-4 text-dark"></i>
+        <h5 class="card-title mt-2">Configuración</h5>
+        <a href="{% url 'inventario:configuracion_sistema' %}" class="btn btn-outline-dark w-100 mt-2">
+          Ajustes del Sistema
+        </a>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

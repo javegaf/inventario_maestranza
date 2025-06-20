@@ -1,0 +1,209 @@
+{# /templates/precios/historial_proveedor.html #}
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Historial de Precios - {{ proveedor.nombre }}{% endblock %}
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'inventario:historial_precios' %}">Historial de Precios</a></li>
+                <li class="breadcrumb-item active">{{ proveedor.nombre }}</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-building"></i> Historial de Precios: {{ proveedor.nombre }}</h2>
+        <p class="text-muted">{{ proveedor.email }} | {{ proveedor.telefono }}</p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h6>Precio Promedio</h6>
+                <h4>${{ stats.precio_promedio_general|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h6>Productos Suministrados</h6>
+                <h4>{{ stats.productos_suministrados }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h6>Total Transacciones</h6>
+                <h4>{{ stats.total_transacciones }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h6>Rango de Precios</h6>
+                <h4>${{ stats.precio_minimo|floatformat:2 }} - ${{ stats.precio_maximo|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Products by Provider -->
+<div class="row">
+    {% for producto_nombre, producto_data in productos_precios.items %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">{{ producto_nombre }}</h6>
+                <a href="{% url 'inventario:historial_precios_producto' producto_data.producto.id %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-graph-up"></i> Ver historial
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">Precio Actual</small>
+                        <h5 class="text-success">${{ producto_data.precio_actual|floatformat:2 }}</h5>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Precio Promedio</small>
+                        <h5 class="text-info">${{ producto_data.precio_promedio|floatformat:2 }}</h5>
+                    </div>
+                </div>
+                
+                {% if producto_data.variacion %}
+                <div class="mt-2">
+                    <small class="text-muted">Variación desde último precio:</small>
+                    {% if producto_data.variacion > 0 %}
+                        <span class="text-danger">
+                            <i class="bi bi-arrow-up"></i> +${{ producto_data.variacion|floatformat:2 }}
+                            {% if producto_data.porcentaje_variacion %}
+                                (+{{ producto_data.porcentaje_variacion|floatformat:1 }}%)
+                            {% endif %}
+                        </span>
+                    {% elif producto_data.variacion < 0 %}
+                        <span class="text-success">
+                            <i class="bi bi-arrow-down"></i> ${{ producto_data.variacion|floatformat:2 }}
+                            {% if producto_data.porcentaje_variacion %}
+                                ({{ producto_data.porcentaje_variacion|floatformat:1 }}%)
+                            {% endif %}
+                        </span>
+                    {% else %}
+                        <span class="text-muted">
+                            <i class="bi bi-dash"></i> Sin cambio
+                        </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div class="mt-2">
+                    <small class="text-muted">{{ producto_data.precios|length }} registro{{ producto_data.precios|length|pluralize:"s" }} de precio</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-4">
+            <i class="bi bi-inbox fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Este proveedor no tiene historial de precios registrado.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Detailed History Table -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Historial Detallado</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Variación</th>
+                        <th>Usuario</th>
+                        <th>Origen</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio in historial %}
+                    <tr>
+                        <td>{{ precio.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <strong>{{ precio.producto.nombre }}</strong>
+                            <br><small class="text-muted">{{ precio.producto.categoria }}</small>
+                        </td>
+                        <td>
+                            <span class="h6 text-success">${{ precio.precio_unitario }}</span>
+                        </td>
+                        <td>
+                            {% if precio.variacion_precio %}
+                                {% if precio.variacion_precio > 0 %}
+                                    <span class="text-danger">
+                                        <i class="bi bi-arrow-up"></i> +${{ precio.variacion_precio|floatformat:2 }}
+                                    </span>
+                                {% elif precio.variacion_precio < 0 %}
+                                    <span class="text-success">
+                                        <i class="bi bi-arrow-down"></i> ${{ precio.variacion_precio|floatformat:2 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Sin cambio</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Primer registro</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.usuario %}
+                                {{ precio.usuario.username }}
+                            {% else %}
+                                <span class="text-muted">Sistema</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.compra %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-cart"></i> Compra
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info">
+                                    <i class="bi bi-pencil"></i> Manual
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.observaciones %}
+                                {{ precio.observaciones|truncatechars:40 }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No hay historial de precios para este proveedor.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

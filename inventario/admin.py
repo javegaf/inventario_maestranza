@@ -2,17 +2,10 @@
 
 from django.contrib import admin
 from .models import (
-    Producto,
-    MovimientoInventario,
-    Proveedor,
-    KitProducto,
-    ProductoEnKit,
-    HistorialPrecio,
-    InformeInventario,
-    AlertaStock,
-    AuditoriaInventario,
-    Proyecto,
-    AsignacionMaterialProyecto
+    Producto, LoteProducto, HistorialLote, MovimientoInventario,
+    Proveedor, CompraProveedor, EvaluacionProveedor, KitProducto,
+    ProductoEnKit, HistorialPrecio, InformeInventario, AlertaStock,
+    AuditoriaInventario, Proyecto, MaterialProyecto, ConfiguracionSistema
 )
 
 @admin.register(Producto)
@@ -84,7 +77,16 @@ class ProyectoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'fecha_inicio', 'fecha_fin_estimada')
 
 
-@admin.register(AsignacionMaterialProyecto)
-class AsignacionMaterialProyectoAdmin(admin.ModelAdmin):
+@admin.register(MaterialProyecto)  # Changed from AsignacionMaterialProyecto
+class MaterialProyectoAdmin(admin.ModelAdmin):
     """Configuración del admin para el modelo AsignacionMaterialProyecto."""
     list_display = ('producto', 'proyecto', 'cantidad_asignada', 'fecha_asignacion')
+
+@admin.register(ConfiguracionSistema)
+class ConfiguracionSistemaAdmin(admin.ModelAdmin):
+    """Admin para gestionar configuraciones generales del sistema."""
+    list_display = ['clave', 'valor', 'descripcion', 'fecha_actualizacion']
+    list_editable = ['valor']
+    search_fields = ['clave', 'descripcion']
+    list_filter = ['clave']
+    ordering = ['clave']

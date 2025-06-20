@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load inventario_extras %}
+
+{% block title %}{{ proyecto.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-tools"></i> {{ proyecto.nombre }}</h2>
+        <p class="text-muted">{{ proyecto.descripcion }}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'inventario:asignar_material' proyecto.id %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Asignar Material
+        </a>
+        <a href="{% url 'inventario:editar_proyecto' proyecto.id %}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Editar Proyecto
+        </a>
+        <a href="{% url 'inventario:listar_proyectos' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<!-- Project Info -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Proyecto</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>Estado:</strong>
+                    {% if proyecto.estado == 'planificacion' %}
+                        <span class="badge bg-info">En Planificación</span>
+                    {% elif proyecto.estado == 'ejecucion' %}
+                        <span class="badge bg-success">En Ejecución</span>
+                    {% elif proyecto.estado == 'completado' %}
+                        <span class="badge bg-secondary">Completado</span>
+                    {% elif proyecto.estado == 'suspendido' %}
+                        <span class="badge bg-warning">Suspendido</span>
+                    {% elif proyecto.estado == 'cancelado' %}
+                        <span class="badge bg-danger">Cancelado</span>
+                    {% endif %}
+                </p>
+                <p><strong>Fecha de inicio:</strong> {{ proyecto.fecha_inicio|date:"d/m/Y" }}</p>
+                <p>
+                    <strong>Fecha fin estimada:</strong> 
+                    {% if proyecto.fecha_fin_estimada %}
+                        {{ proyecto.fecha_fin_estimada|date:"d/m/Y" }}
+                    {% else %}
+                        <span class="text-muted">No definida</span>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>Fecha fin real:</strong> 
+                    {% if proyecto.fecha_fin_real %}
+                        {{ proyecto.fecha_fin_real|date:"d/m/Y" }}
+                    {% else %}
+                        <span class="text-muted">No finalizado</span>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>Responsable:</strong> 
+                    {% if proyecto.responsable %}
+                        {{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}
+                    {% else %}
+                        <span class="text-muted">Sin asignar</span>
+                    {% endif %}
+                </p>
+                <p><strong>Creado por:</strong> {{ proyecto.creado_por.username }}</p>
+                <p><strong>Fecha de creación:</strong> {{ proyecto.fecha_creacion|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.total_materiales }}</h3>
+                        <p class="card-text">Materiales Asignados</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.costo_total|clp }}</h3>
+                        <p class="card-text">Costo Total Estimado</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Progreso del Proyecto</h5>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar {% if proyecto.estado == 'completado' %}bg-success{% endif %}" role="progressbar" style="width: {{ proyecto.progreso }}%;" aria-valuenow="{{ proyecto.progreso }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ proyecto.progreso }}%
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h5>{{ proyecto.fecha_inicio|date:"d/m/Y" }}</h5>
+                        <small class="text-muted">Inicio</small>
+                    </div>
+                    <div class="col-4">
+                        <h5>{% now "d/m/Y" %}</h5>
+                        <small class="text-muted">Hoy</small>
+                    </div>
+                    <div class="col-4">
+                        <h5>{{ proyecto.fecha_fin_estimada|date:"d/m/Y"|default:"No definida" }}</h5>
+                        <small class="text-muted">Fin Estimado</small>
+                    </div>
+                </div>
+                
+                {% if proyecto.notas %}
+                <div class="mt-3">
+                    <h6>Notas:</h6>
+                    <p>{{ proyecto.notas }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Materials Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Materiales Asignados</h5>
+        <a href="{% url 'inventario:asignar_material' proyecto.id %}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus-circle"></i> Asignar Material
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Material</th>
+                        <th>Cantidad Asignada</th>
+                        <th>Cantidad Utilizada</th>
+                        <th>Disponible</th>
+                        <th>Lote</th>
+                        <th>Uso</th>
+                        <th>Costo Estimado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for material in materiales %}
+                    <tr>
+                        <td>
+                            <strong>{{ material.producto.nombre }}</strong>
+                            <br>
+                            <small class="text-muted">{{ material.producto.descripcion|truncatechars:50 }}</small>
+                        </td>
+                        <td>{{ material.cantidad_asignada }}</td>
+                        <td>{{ material.cantidad_utilizada }}</td>
+                        <td>{{ material.cantidad_disponible }}</td>
+                        <td>
+                            {% if material.lote %}
+                                <span class="badge bg-info">{{ material.lote.numero_lote }}</span>
+                                <br>
+                                <small class="text-muted">Vence: {{ material.lote.fecha_vencimiento|date:"d/m/Y" }}</small>
+                            {% else %}
+                                <span class="text-muted">Sin lote específico</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar {% if material.porcentaje_utilizado == 100 %}bg-success{% elif material.porcentaje_utilizado > 75 %}bg-warning{% endif %}" role="progressbar" style="width: {{ material.porcentaje_utilizado }}%" aria-valuenow="{{ material.porcentaje_utilizado }}" aria-valuemin="0" aria-valuemax="100">{{ material.porcentaje_utilizado|floatformat:0 }}%</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="text-success">{{ material.costo_total|clp }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'inventario:actualizar_uso_material' material.id %}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-check-circle"></i> Registrar Uso
+                                </a>
+                                <a href="{% url 'inventario:eliminar_material' material.id %}" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle me-2"></i> No hay materiales asignados a este proyecto.
+                                <br>
+                                <a href="{% url 'inventario:asignar_material' proyecto.id %}" class="btn btn-success mt-3">
+                                    <i class="bi bi-plus-circle"></i> Asignar Material
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

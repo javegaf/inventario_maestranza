@@ -247,6 +247,22 @@ class CompraProveedor(models.Model):
     def total(self):
         return self.cantidad * self.precio_unitario
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        # Save the purchase first
+        super().save(*args, **kwargs)
+        
+        # Create price history record automatically only for new purchases
+        if is_new:
+            HistorialPrecio.objects.create(
+                producto=self.producto,
+                precio_unitario=self.precio_unitario,
+                proveedor=self.proveedor,
+                compra=self,
+                usuario=self.usuario,
+                observaciones=f'Precio registrado por compra - Factura: {self.numero_factura or "Sin número"}'
+            )
+
     def __str__(self):
         return f"Compra a {self.proveedor.nombre} - {self.producto.nombre}"
 
@@ -290,9 +306,46 @@ class ProductoEnKit(models.Model):
 class HistorialPrecio(models.Model):
     """Registro histórico de precios unitarios por producto."""
 
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    fecha = models.DateField(auto_now_add=True)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios')
+    fecha = models.DateTimeField(auto_now_add=True)  # Changed to DateTimeField for better precision
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
+    compra = models.ForeignKey(CompraProveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)  # New field
+    observaciones = models.TextField(blank=True)  # New field
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name = 'Historial de Precio'
+        verbose_name_plural = 'Historial de Precios'
+    
+    def __str__(self):
+        return f"{self.producto.nombre} - ${self.precio_unitario} ({self.fecha.strftime('%d/%m/%Y')})"
+    
+    @property
+    def precio_anterior(self):
+        """Get the previous price for this product."""
+        precio_anterior = HistorialPrecio.objects.filter(
+            producto=self.producto,
+            fecha__lt=self.fecha
+        ).first()
+        return precio_anterior.precio_unitario if precio_anterior else None
+    
+    @property
+    def variacion_precio(self):
+        """Calculate price variation from previous price."""
+        anterior = self.precio_anterior
+        if anterior:
+            return self.precio_unitario - anterior
+        return None
+    
+    @property
+    def porcentaje_variacion(self):
+        """Calculate percentage variation from previous price."""
+        anterior = self.precio_anterior
+        if anterior and anterior > 0:
+            return ((self.precio_unitario - anterior) / anterior) * 100
+        return None
 
 
 class InformeInventario(models.Model):
@@ -346,26 +399,172 @@ class AuditoriaInventario(models.Model):
 
 
 class Proyecto(models.Model):
-    """Proyecto al que se le asignan productos del inventario."""
-
+    """Modelo para representar proyectos que utilizan materiales del inventario."""
     nombre = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True)
+    descripcion = models.TextField(blank=True, null=True)
     fecha_inicio = models.DateField()
-    fecha_fin_estimada = models.DateField(null=True, blank=True)
-
+    fecha_fin_estimada = models.DateField(blank=True, null=True)
+    fecha_fin_real = models.DateField(blank=True, null=True)
+    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+                                   blank=True, null=True, related_name='proyectos_responsable')
+    estado = models.CharField(max_length=20, choices=[
+        ('planificacion', 'En Planificación'),
+        ('ejecucion', 'En Ejecución'),
+        ('completado', 'Completado'),
+        ('suspendido', 'Suspendido'),
+        ('cancelado', 'Cancelado')
+    ], default='planificacion')
+    notas = models.TextField(blank=True, null=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+                                  blank=True, null=True, related_name='proyectos_creados')
+    fecha_creacion = models.DateTimeField(blank=True , null=True)
+    fecha_actualizacion = models.DateTimeField(blank=True , null=True)
+    
+    class Meta:
+        ordering = ['-fecha_inicio']
+        verbose_name = 'Proyecto'
+        verbose_name_plural = 'Proyectos'
+    
     def __str__(self):
-        """Retorna el nombre del proyecto."""
-        return str(self.nombre)
+        return self.nombre
+    
+    @property
+    def total_materiales(self):
+        """Devuelve el total de materiales asignados al proyecto."""
+        return self.materiales.count()
+    
+    @property
+    def costo_total_estimado(self):
+        """Calcula el costo total estimado del proyecto basado en los materiales asignados."""
+        return sum(material.costo_total for material in self.materiales.all())
+    
+    @property
+    def dias_restantes(self):
+        """Calcula los días restantes hasta la fecha de finalización estimada."""
+        if not self.fecha_fin_estimada:
+            return None
+        if self.estado == 'completado':
+            return 0
+        
+        dias = (self.fecha_fin_estimada - timezone.now().date()).days
+        return max(0, dias)
+    
+    @property
+    def progreso(self):
+        """Calcula el progreso aproximado del proyecto."""
+        if self.estado == 'completado':
+            return 100
+        if self.estado == 'planificacion':
+            return 0
+            
+        # Si está en ejecución, calcular basado en tiempo transcurrido
+        if self.fecha_fin_estimada and self.fecha_inicio:
+            duracion_total = (self.fecha_fin_estimada - self.fecha_inicio).days
+            if duracion_total <= 0:
+                return 50  # Valor por defecto si las fechas no son coherentes
+                
+            dias_transcurridos = (timezone.now().date() - self.fecha_inicio).days
+            progreso = min(99, int((dias_transcurridos / duracion_total) * 100))
+            return max(1, progreso)  # Al menos 1% si ya comenzó
+            
+        return 50  # Valor por defecto
 
 
-class AsignacionMaterialProyecto(models.Model):
-    """Asociación de productos asignados a un proyecto específico."""
-
-    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+class MaterialProyecto(models.Model):
+    """Materiales asignados a un proyecto específico."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='materiales')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='proyectos')
     cantidad_asignada = models.PositiveIntegerField()
+    cantidad_utilizada = models.PositiveIntegerField(default=0)
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
+    lote = models.ForeignKey(LoteProducto, on_delete=models.SET_NULL, blank=True, null=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        verbose_name = 'Material de Proyecto'
+        verbose_name_plural = 'Materiales de Proyectos'
+        unique_together = ['proyecto', 'producto', 'lote']
+    
+    def __str__(self):
+        return f"{self.producto.nombre} - {self.proyecto.nombre}"
+    
+    @property
+    def costo_total(self):
+        """Calcula el costo total de este material en el proyecto."""
+        # Obtener el precio más reciente del producto
+        ultimo_precio = HistorialPrecio.objects.filter(producto=self.producto).order_by('-fecha').first()
+        precio_unitario = ultimo_precio.precio_unitario if ultimo_precio else 0
+        return precio_unitario * self.cantidad_asignada
+    
+    @property
+    def cantidad_disponible(self):
+        """Calcula la cantidad que aún queda disponible para usar."""
+        return self.cantidad_asignada - self.cantidad_utilizada
+    
+    @property
+    def porcentaje_utilizado(self):
+        """Calcula el porcentaje de material utilizado."""
+        if self.cantidad_asignada == 0:
+            return 0
+        return (self.cantidad_utilizada / self.cantidad_asignada) * 100
+
+class ConfiguracionSistema(models.Model):
+    """Configuración global del sistema de control de inventario.
+
+    Este modelo permite almacenar y modificar parámetros clave que controlan
+    el comportamiento del sistema sin necesidad de cambiar el código fuente.
+    """
+
+    CLAVES_CHOICES = [
+        ('umbral_stock_critico', 'Umbral de Stock Crítico'),
+        ('umbral_stock_bajo', 'Umbral de Stock Bajo'),
+        ('modo_mantenimiento', 'Modo Mantenimiento'),
+        ('auto_generar_orden_compra', 'Auto-generar Orden de Compra'),
+        ('proveedor_default', 'Proveedor Default'),
+        ('registro_de_auditorias', 'Registro de Auditorías'),
+        ('mostrar_mensaje_bienvenida', 'Mostrar Mensaje de Bienvenida'),
+        ('formato_fecha_preferido', 'Formato de Fecha Preferido'),
+    ]
+
+    clave = models.CharField(
+        max_length=100,
+        choices=CLAVES_CHOICES,
+        unique=True,
+        help_text="Nombre interno del parámetro de configuración."
+    )
+    valor = models.CharField(
+        max_length=255,
+        help_text="Valor asignado al parámetro (texto o número según contexto)."
+    )
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Descripción explicativa del propósito de este parámetro."
+    )
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración del Sistema'
+        verbose_name_plural = 'Configuraciones del Sistema'
+        ordering = ['clave']
 
     def __str__(self):
-        """Retorna una cadena que relaciona producto con proyecto."""
-        return f"{self.producto} → {self.proyecto}"
+        """Retorna una representación legible del parámetro configurado."""
+        return f"{self.get_clave_display()}: {self.valor}"
+
+class AuditoriaInformeInventario(models.Model):
+    """Auditoría de generación de informes de inventario (PDF o Excel)."""
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    filtros_aplicados = models.TextField(help_text="Filtros usados al generar el informe (formato JSON o texto plano).")
+    tipo_exportacion = models.CharField(
+        max_length=10,
+        choices=[('pdf', 'PDF'), ('excel', 'Excel')],
+        help_text="Formato en que se exportó el informe."
+    )
+    total_registros = models.PositiveIntegerField(help_text="Cantidad de productos exportados.")
+
+    def __str__(self):
+        return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
