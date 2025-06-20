@@ -507,3 +507,48 @@ class MaterialProyecto(models.Model):
         if self.cantidad_asignada == 0:
             return 0
         return (self.cantidad_utilizada / self.cantidad_asignada) * 100
+
+class ConfiguracionSistema(models.Model):
+    """Configuración global del sistema de control de inventario.
+
+    Este modelo permite almacenar y modificar parámetros clave que controlan
+    el comportamiento del sistema sin necesidad de cambiar el código fuente.
+    """
+
+    CLAVES_CHOICES = [
+        ('umbral_stock_critico', 'Umbral de Stock Crítico'),
+        ('umbral_stock_bajo', 'Umbral de Stock Bajo'),
+        ('modo_mantenimiento', 'Modo Mantenimiento'),
+        ('auto_generar_orden_compra', 'Auto-generar Orden de Compra'),
+        ('proveedor_default', 'Proveedor Default'),
+        ('registro_de_auditorias', 'Registro de Auditorías'),
+        ('mostrar_mensaje_bienvenida', 'Mostrar Mensaje de Bienvenida'),
+        ('formato_fecha_preferido', 'Formato de Fecha Preferido'),
+    ]
+
+    clave = models.CharField(
+        max_length=100,
+        choices=CLAVES_CHOICES,
+        unique=True,
+        help_text="Nombre interno del parámetro de configuración."
+    )
+    valor = models.CharField(
+        max_length=255,
+        help_text="Valor asignado al parámetro (texto o número según contexto)."
+    )
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Descripción explicativa del propósito de este parámetro."
+    )
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuración del Sistema'
+        verbose_name_plural = 'Configuraciones del Sistema'
+        ordering = ['clave']
+
+    def __str__(self):
+        """Retorna una representación legible del parámetro configurado."""
+        return f"{self.get_clave_display()}: {self.valor}"
