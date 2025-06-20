@@ -152,12 +152,15 @@
 </nav>
 
 <!-- ACCIONES -->
-<div class="d-flex gap-2">
+<div class="d-flex flex-wrap gap-2 mt-4">
   <a href="{% url 'inventario:crear_producto' %}" class="btn btn-success">
     <i class="bi bi-plus-circle-fill"></i> Agregar nuevo producto
   </a>
   <a href="{% url 'inventario:historial_bloqueos' %}" class="btn btn-outline-info">
     <i class="bi bi-clock-history"></i> Ver historial de bloqueos
+  </a>
+  <a href="{% url 'inventario:informe_inventario' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-bar-chart-line"></i> Ver Informe Personalizado
   </a>
 </div>
 
