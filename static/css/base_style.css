@@ -60,13 +60,17 @@
     color: #6c757d !important;
 }
 
-/* Íconos oscuros que deben volverse claros en modo dark */
+/* Íconos */
 [data-bs-theme="dark"] .icon-reportes {
-    color: #4dabf7 !important; /* azul claro visible */
+    color: #4dabf7 !important;
 }
 
 [data-bs-theme="dark"] .icon-precios {
-    color: #fdd835 !important; /* amarillo fuerte */
+    color: #fdd835 !important;
+}
+
+[data-bs-theme="dark"] .icon-configuracion {
+    color: #f8f9fa !important;
 }
 
 [data-bs-theme="light"] .icon-reportes {
@@ -77,35 +81,99 @@
     color: #ffc107 !important;
 }
 
-/* Botón de historial de precios (amarillo en oscuro, más oscuro en claro) */
-[data-bs-theme="dark"] .btn-historial {
-    border: 1px solid #fdd835;
-    color: #fdd835;
+[data-bs-theme="light"] .icon-configuracion {
+    color: #212529 !important;
 }
 
-[data-bs-theme="light"] .btn-historial {
-    border: 1px solid #ffc107;
-    color: #212529;
+/* Botones personalizados */
+.btn {
+    transition: all 0.3s ease-in-out;
 }
 
-/* Botón de reportes (azul visible en ambos temas) */
 [data-bs-theme="dark"] .btn-reportes {
     border: 1px solid #4dabf7;
     color: #4dabf7;
+    background-color: transparent;
+}
+
+[data-bs-theme="dark"] .btn-reportes:hover {
+    background-color: #4dabf7;
+    color: #000;
 }
 
 [data-bs-theme="light"] .btn-reportes {
     border: 1px solid #0d6efd;
     color: #0d6efd;
+    background-color: transparent;
 }
 
-/* Botón de proyectos (blanco en oscuro, gris en claro) */
+[data-bs-theme="light"] .btn-reportes:hover {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .btn-historial {
+    border: 1px solid #fdd835;
+    color: #fdd835;
+    background-color: transparent;
+}
+
+[data-bs-theme="dark"] .btn-historial:hover {
+    background-color: #fdd835;
+    color: #000;
+}
+
+[data-bs-theme="light"] .btn-historial {
+    border: 1px solid #ffc107;
+    color: #212529;
+    background-color: transparent;
+}
+
+[data-bs-theme="light"] .btn-historial:hover {
+    background-color: #ffc107;
+    color: #000;
+}
+
 [data-bs-theme="dark"] .btn-proyectos {
     border: 1px solid #ffffff;
     color: #ffffff;
+    background-color: transparent;
+}
+
+[data-bs-theme="dark"] .btn-proyectos:hover {
+    background-color: #ffffff;
+    color: #000;
 }
 
 [data-bs-theme="light"] .btn-proyectos {
     border: 1px solid #6c757d;
     color: #6c757d;
+    background-color: transparent;
+}
+
+[data-bs-theme="light"] .btn-proyectos:hover {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .btn-configuracion {
+    border-color: #ffffff;
+    color: #ffffff;
+    background-color: transparent;
+}
+
+[data-bs-theme="dark"] .btn-configuracion:hover {
+    background-color: #ffffff;
+    color: #000;
+}
+
+[data-bs-theme="light"] .btn-configuracion {
+    border-color: #212529;
+    color: #212529;
+    background-color: transparent;
+}
+
+[data-bs-theme="light"] .btn-configuracion:hover {
+    background-color: #212529;
+    color: #fff;
 }
