@@ -1,6 +1,6 @@
-{# /templates/precios/historial_proveedor.html #}
 {% extends 'base.html' %}
 {% load static %}
+{% load inventario_extras %}
 {% block title %}Historial de Precios - {{ proveedor.nombre }}{% endblock %}
 {% block content %}
 
@@ -23,7 +23,7 @@
         <div class="card bg-primary text-white">
             <div class="card-body text-center">
                 <h6>Precio Promedio</h6>
-                <h4>${{ stats.precio_promedio_general|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_promedio_general|clp }}</h4>
             </div>
         </div>
     </div>
@@ -47,7 +47,7 @@
         <div class="card bg-warning text-white">
             <div class="card-body text-center">
                 <h6>Rango de Precios</h6>
-                <h4>${{ stats.precio_minimo|floatformat:2 }} - ${{ stats.precio_maximo|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_minimo|clp }} - {{ stats.precio_maximo|clp }}</h4>
             </div>
         </div>
     </div>
@@ -68,27 +68,27 @@
                 <div class="row">
                     <div class="col-6">
                         <small class="text-muted">Precio Actual</small>
-                        <h5 class="text-success">${{ producto_data.precio_actual|floatformat:2 }}</h5>
+                        <h5 class="text-success">{{ producto_data.precio_actual|clp }}</h5>
                     </div>
                     <div class="col-6">
                         <small class="text-muted">Precio Promedio</small>
-                        <h5 class="text-info">${{ producto_data.precio_promedio|floatformat:2 }}</h5>
+                        <h5 class="text-info">{{ producto_data.precio_promedio|clp }}</h5>
                     </div>
                 </div>
-                
+
                 {% if producto_data.variacion %}
                 <div class="mt-2">
                     <small class="text-muted">Variación desde último precio:</small>
                     {% if producto_data.variacion > 0 %}
                         <span class="text-danger">
-                            <i class="bi bi-arrow-up"></i> +${{ producto_data.variacion|floatformat:2 }}
+                            <i class="bi bi-arrow-up"></i> +{{ producto_data.variacion|clp }}
                             {% if producto_data.porcentaje_variacion %}
                                 (+{{ producto_data.porcentaje_variacion|floatformat:1 }}%)
                             {% endif %}
                         </span>
                     {% elif producto_data.variacion < 0 %}
                         <span class="text-success">
-                            <i class="bi bi-arrow-down"></i> ${{ producto_data.variacion|floatformat:2 }}
+                            <i class="bi bi-arrow-down"></i> {{ producto_data.variacion|clp }}
                             {% if producto_data.porcentaje_variacion %}
                                 ({{ producto_data.porcentaje_variacion|floatformat:1 }}%)
                             {% endif %}
@@ -100,7 +100,7 @@
                     {% endif %}
                 </div>
                 {% endif %}
-                
+
                 <div class="mt-2">
                     <small class="text-muted">{{ producto_data.precios|length }} registro{{ producto_data.precios|length|pluralize:"s" }} de precio</small>
                 </div>
@@ -145,17 +145,17 @@
                             <br><small class="text-muted">{{ precio.producto.categoria }}</small>
                         </td>
                         <td>
-                            <span class="h6 text-success">${{ precio.precio_unitario }}</span>
+                            <span class="h6 text-success">{{ precio.precio_unitario|clp }}</span>
                         </td>
                         <td>
                             {% if precio.variacion_precio %}
                                 {% if precio.variacion_precio > 0 %}
                                     <span class="text-danger">
-                                        <i class="bi bi-arrow-up"></i> +${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-up"></i> +{{ precio.variacion_precio|clp }}
                                     </span>
                                 {% elif precio.variacion_precio < 0 %}
                                     <span class="text-success">
-                                        <i class="bi bi-arrow-down"></i> ${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-down"></i> {{ precio.variacion_precio|clp }}
                                     </span>
                                 {% else %}
                                     <span class="text-muted">Sin cambio</span>

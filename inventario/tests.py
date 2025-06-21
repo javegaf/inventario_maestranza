@@ -1,3 +1,1 @@
-from django.test import TestCase
-
-# Create your tests here.
+"""Modulo de pruebas para la aplicacion inventario."""

@@ -1,5 +1,4 @@
 """Modelos del sistema de control de inventario."""
-
 from datetime import datetime
 from django.db import models
 from django.utils import timezone
@@ -24,23 +23,22 @@ class Producto(models.Model):
 
     @property
     def is_blocked(self):
-        """Check if the product is currently blocked."""
-        return AuditoriaInventario.objects.filter(
-            producto=self, 
+        """Verifica si el producto está bloqueado para auditoría."""
+        return AuditoriaInventario.objects.filter(# pylint: disable=no-member
+            producto=self,
             bloqueado=True
         ).exists()
-    
+
     def get_active_block(self):
-        """Return the active block for this product, if any."""
-        return AuditoriaInventario.objects.filter(
-            producto=self, 
+        """Obtiene el bloque activo de auditoría para este producto."""
+        return AuditoriaInventario.objects.filter(# pylint: disable=no-member
+            producto=self,
             bloqueado=True
         ).first()
 
 
 class LoteProducto(models.Model):
     """Modelo que representa un lote específico de un producto."""
-    
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes')
     numero_lote = models.CharField(max_length=50, unique=True)
     fecha_vencimiento = models.DateField()
@@ -49,27 +47,25 @@ class LoteProducto(models.Model):
     cantidad_actual = models.PositiveIntegerField()
     activo = models.BooleanField(default=True)
     observaciones = models.TextField(blank=True)
-    
     class Meta:
+        """Opciones adicionales para el modelo LoteProducto."""
         unique_together = ['producto', 'numero_lote']
         ordering = ['fecha_vencimiento']
-    
+
     def __str__(self):
-        return f"{self.producto.nombre} - Lote: {self.numero_lote}"
-    
+        return f"{self.producto.nombre} - Lote: {self.numero_lote}"# pylint: disable=no-member
+
     @property
     def esta_vencido(self):
         """Verifica si el lote está vencido."""
-        from django.utils import timezone
         return self.fecha_vencimiento < timezone.now().date()
-    
+
     @property
     def dias_hasta_vencimiento(self):
         """Calcula los días hasta el vencimiento."""
-        from django.utils import timezone
         delta = self.fecha_vencimiento - timezone.now().date()
         return delta.days
-    
+
     @property
     def porcentaje_usado(self):
         """Calcula el porcentaje usado del lote."""
@@ -80,7 +76,7 @@ class LoteProducto(models.Model):
 
 class HistorialLote(models.Model):
     """Historial de cambios en los lotes."""
-    
+
     TIPO_CAMBIO = [
         ('creacion', 'Creación de lote'),
         ('uso', 'Uso de lote'),
@@ -88,7 +84,7 @@ class HistorialLote(models.Model):
         ('vencimiento', 'Marcado como vencido'),
         ('eliminacion', 'Eliminación de lote'),
     ]
-    
+
     lote = models.ForeignKey(LoteProducto, on_delete=models.CASCADE, related_name='historial')
     tipo_cambio = models.CharField(max_length=20, choices=TIPO_CAMBIO)
     cantidad_anterior = models.PositiveIntegerField()
@@ -96,12 +92,12 @@ class HistorialLote(models.Model):
     fecha_cambio = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     observaciones = models.TextField(blank=True)
-    
+
     @property
     def diferencia(self):
         """Calcula la diferencia entre cantidad nueva y anterior."""
         return self.cantidad_nueva - self.cantidad_anterior
-    
+
     @property
     def tipo_diferencia(self):
         """Retorna el tipo de diferencia: positiva, negativa o neutra."""
@@ -112,11 +108,12 @@ class HistorialLote(models.Model):
             return 'negativa'
         else:
             return 'neutra'
-    
+
     def __str__(self):
-        return f"{self.lote.numero_lote} - {self.get_tipo_cambio_display()}"
-    
+        return f"{self.lote.numero_lote} - {self.get_tipo_cambio_display()}"# pylint: disable=no-member
+
     class Meta:
+        """Opciones adicionales para el modelo HistorialLote."""
         ordering = ['-fecha_cambio']
 
 
@@ -141,44 +138,63 @@ class MovimientoInventario(models.Model):
     def save(self, *args, **kwargs):
         # Save the movement first
         super().save(*args, **kwargs)
-        
+
         # Update batch quantity if batch is specified
         if self.lote:
             self.actualizar_cantidad_lote()
-        
+
         # Update product stock
         self.actualizar_stock_producto()
-    
+
     def actualizar_cantidad_lote(self):
-        """Update the batch quantity based on the movement."""
+        """Actualiza la cantidad del lote afectado por el movimiento."""
         if not self.lote:
             return
-            
+
+        # Guardamos la cantidad antes de actualizarla
+        cantidad_anterior = self.lote.cantidad_actual  # pylint: disable=unused-variable
+
         if self.tipo == 'entrada' or self.tipo == 'devolucion':
             self.lote.cantidad_actual += self.cantidad
         elif self.tipo == 'salida':
             self.lote.cantidad_actual -= self.cantidad
         elif self.tipo == 'ajuste':
-            # For adjustments, the quantity represents the new total
-            cantidad_anterior = self.lote.cantidad_actual
             self.lote.cantidad_actual = self.cantidad
-            
-        # Ensure quantity doesn't go below 0
+
+        # Aseguramos que no baje de cero
         if self.lote.cantidad_actual < 0:
             self.lote.cantidad_actual = 0
-            
-        self.lote.save()
-        
-        # Create history record
-        HistorialLote.objects.create(
+
+        self.lote.save()  # pylint: disable=no-member
+
+        try:
+            if self.tipo == 'entrada':
+                diferencia = self.cantidad
+            elif self.tipo == 'salida':
+                diferencia = -self.cantidad  # pylint: disable=invalid-unary-operand-type
+            else:
+                diferencia = 0
+        except Exception: # pylint: disable=broad-except
+            diferencia = 0
+
+        # Definir tipo_cambio antes del create()
+        if self.tipo == 'salida':
+            tipo_cambio = 'uso'
+        elif self.tipo == 'devolucion':
+            tipo_cambio = 'devolucion'
+        else:
+            tipo_cambio = 'uso'
+
+        # Ahora sí, llamada limpia al create()
+        HistorialLote.objects.create(  # pylint: disable=no-member
             lote=self.lote,
-            tipo_cambio='uso' if self.tipo == 'salida' else 'devolucion' if self.tipo == 'devolucion' else 'uso',
-            cantidad_anterior=self.lote.cantidad_actual - (self.cantidad if self.tipo == 'entrada' else -self.cantidad),
+            tipo_cambio=tipo_cambio,
+            cantidad_anterior=self.lote.cantidad_actual - diferencia,
             cantidad_nueva=self.lote.cantidad_actual,
             usuario=self.usuario,
-            observaciones=f'Movimiento {self.tipo}: {self.cantidad} unidades'
+            observaciones=f"Movimiento {self.tipo}: {self.cantidad} unidades"
         )
-    
+
     def actualizar_stock_producto(self):
         """Update the product stock based on the movement."""
         if self.tipo == 'entrada' or self.tipo == 'devolucion':
@@ -187,23 +203,21 @@ class MovimientoInventario(models.Model):
             self.producto.stock_actual -= self.cantidad
         elif self.tipo == 'ajuste':
             # For adjustments, recalculate total stock from all batches
-            total_lotes = LoteProducto.objects.filter(
-                producto=self.producto, 
+            total_lotes = LoteProducto.objects.filter(# pylint: disable=no-member
+                producto=self.producto,
                 activo=True
             ).aggregate(total=models.Sum('cantidad_actual'))['total'] or 0
             self.producto.stock_actual = total_lotes
-            
         # Ensure stock doesn't go below 0
         if self.producto.stock_actual < 0:
             self.producto.stock_actual = 0
-            
-        self.producto.save()
+
+        self.producto.save()# pylint: disable=no-member
 
     def __str__(self):
         """Retorna una representación del movimiento realizado."""
-        lote_info = f" (Lote: {self.lote.numero_lote})" if self.lote else ""
+        lote_info = f" (Lote: {self.lote.numero_lote})" if self.lote else ""# pylint: disable=no-member
         return f"{self.tipo} - {self.producto}{lote_info} ({self.cantidad})"
-
 
 class Proveedor(models.Model):
     """Modelo para gestionar proveedores."""
@@ -218,19 +232,22 @@ class Proveedor(models.Model):
     activo = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.nombre
+        return str(self.nombre)
 
     def get_calificacion_promedio(self):
         """Calcula la calificación promedio del proveedor."""
+        # pylint: disable=no-member
         evaluaciones = self.evaluaciones.all()
-        if evaluaciones:
-            return sum(e.calificacion for e in evaluaciones) / len(evaluaciones)
-        return 0
+        cantidad = evaluaciones.count()
+        if cantidad == 0:
+            return 0
+        return sum(e.calificacion for e in evaluaciones) / cantidad
 
     def get_total_compras(self):
         """Obtiene el total de compras realizadas a este proveedor."""
-        return self.compras.count()
-
+        # pylint: disable=no-member
+        compras = getattr(self, 'compras', None)
+        return compras.count() if compras else 0
 
 class CompraProveedor(models.Model):
     """Modelo para registrar compras a proveedores."""
@@ -245,25 +262,28 @@ class CompraProveedor(models.Model):
 
     @property
     def total(self):
+        """Calcula el total de la compra."""
         return self.cantidad * self.precio_unitario
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         # Save the purchase first
         super().save(*args, **kwargs)
-        
+
         # Create price history record automatically only for new purchases
         if is_new:
-            HistorialPrecio.objects.create(
+            HistorialPrecio.objects.create(# pylint: disable=no-member
                 producto=self.producto,
                 precio_unitario=self.precio_unitario,
                 proveedor=self.proveedor,
                 compra=self,
                 usuario=self.usuario,
-                observaciones=f'Precio registrado por compra - Factura: {self.numero_factura or "Sin número"}'
+                observaciones=f'Precio registrado por compra - Factura: {
+                    self.numero_factura or "Sin número"}'
             )
 
     def __str__(self):
+        # pylint: disable=no-member
         return f"Compra a {self.proveedor.nombre} - {self.producto.nombre}"
 
 
@@ -285,6 +305,7 @@ class EvaluacionProveedor(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
+        # pylint: disable=no-member
         return f"Evaluación de {self.proveedor.nombre} - {self.get_calificacion_display()}"
 
 
@@ -307,30 +328,34 @@ class HistorialPrecio(models.Model):
     """Registro histórico de precios unitarios por producto."""
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios')
-    fecha = models.DateTimeField(auto_now_add=True)  # Changed to DateTimeField for better precision
+    fecha = models.DateTimeField(auto_now_add=True)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
-    compra = models.ForeignKey(CompraProveedor, on_delete=models.SET_NULL, null=True, blank=True)  # New field
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)  # New field
-    observaciones = models.TextField(blank=True)  # New field
-    
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)
+    compra = models.ForeignKey(CompraProveedor, on_delete=models.SET_NULL, null=True, blank=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    observaciones = models.TextField(blank=True)
+
     class Meta:
+        """Opciones adicionales para el modelo HistorialPrecio."""
         ordering = ['-fecha']
         verbose_name = 'Historial de Precio'
         verbose_name_plural = 'Historial de Precios'
-    
+
     def __str__(self):
-        return f"{self.producto.nombre} - ${self.precio_unitario} ({self.fecha.strftime('%d/%m/%Y')})"
-    
+        # pylint: disable=no-member
+        return f"{self.producto.nombre} - ${self.precio_unitario} ({self.fecha.strftime(
+            '%d/%m/%Y')})"
+
     @property
     def precio_anterior(self):
-        """Get the previous price for this product."""
+        """Entrega el precio unitario del producto en la fecha anterior."""
+        # pylint: disable=no-member
         precio_anterior = HistorialPrecio.objects.filter(
             producto=self.producto,
             fecha__lt=self.fecha
         ).first()
         return precio_anterior.precio_unitario if precio_anterior else None
-    
+
     @property
     def variacion_precio(self):
         """Calculate price variation from previous price."""
@@ -338,7 +363,7 @@ class HistorialPrecio(models.Model):
         if anterior:
             return self.precio_unitario - anterior
         return None
-    
+
     @property
     def porcentaje_variacion(self):
         """Calculate percentage variation from previous price."""
@@ -347,10 +372,8 @@ class HistorialPrecio(models.Model):
             return ((self.precio_unitario - anterior) / anterior) * 100
         return None
 
-
 class InformeInventario(models.Model):
     """Modelo para informes generados del inventario."""
-
     nombre = models.CharField(max_length=100)
     fecha_generacion = models.DateTimeField(auto_now_add=True)
     generado_por = models.ForeignKey('usuarios.Usuario', on_delete=models.SET_NULL, null=True)
@@ -366,37 +389,36 @@ class InformeInventario(models.Model):
 
 class AlertaStock(models.Model):
     """Alerta generada cuando un producto está bajo el stock mínimo."""
-
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     fecha_alerta = models.DateTimeField(auto_now_add=True)
     mensaje = models.TextField()
     atendido = models.BooleanField(default=False)
 
     def __str__(self):
-
+        # pylint: disable=no-member
         return f"Alerta: {self.producto.nombre} - {self.fecha_alerta}"
 
 
 class AuditoriaInventario(models.Model):
     """Bloqueo temporal de producto mientras se realiza una auditoría."""
-
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     fecha_fin = models.DateTimeField(null=True, blank=True)  # This field is missing in the database
     bloqueado = models.BooleanField(default=False)
     motivo = models.TextField(blank=True)
-    usuario_auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    
+    usuario_auditor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
     def finalizar(self):
-        """Mark the block as finished by setting an end date."""
+        """Marca la auditoría como finalizada y desbloquea el producto."""
         self.fecha_fin = timezone.now()
         self.bloqueado = False
         self.save()
-        
+
     def __str__(self):
+        # pylint: disable=no-member
         status = "Bloqueado" if self.bloqueado else "Desbloqueado"
         return f"{self.producto.nombre} - {status} - {self.fecha_inicio}"
-
 
 class Proyecto(models.Model):
     """Modelo para representar proyectos que utilizan materiales del inventario."""
@@ -405,7 +427,7 @@ class Proyecto(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin_estimada = models.DateField(blank=True, null=True)
     fecha_fin_real = models.DateField(blank=True, null=True)
-    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+    responsable = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                    blank=True, null=True, related_name='proyectos_responsable')
     estado = models.CharField(max_length=20, choices=[
         ('planificacion', 'En Planificación'),
@@ -415,29 +437,32 @@ class Proyecto(models.Model):
         ('cancelado', 'Cancelado')
     ], default='planificacion')
     notas = models.TextField(blank=True, null=True)
-    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                   blank=True, null=True, related_name='proyectos_creados')
     fecha_creacion = models.DateTimeField(blank=True , null=True)
     fecha_actualizacion = models.DateTimeField(blank=True , null=True)
-    
+
     class Meta:
+        """Opciones adicionales para el modelo Proyecto."""
         ordering = ['-fecha_inicio']
         verbose_name = 'Proyecto'
         verbose_name_plural = 'Proyectos'
-    
+
     def __str__(self):
-        return self.nombre
-    
+        return str(self.nombre)
+
     @property
     def total_materiales(self):
         """Devuelve el total de materiales asignados al proyecto."""
+        # pylint: disable=no-member
         return self.materiales.count()
-    
+
     @property
     def costo_total_estimado(self):
         """Calcula el costo total estimado del proyecto basado en los materiales asignados."""
+        # pylint: disable=no-member
         return sum(material.costo_total for material in self.materiales.all())
-    
+
     @property
     def dias_restantes(self):
         """Calcula los días restantes hasta la fecha de finalización estimada."""
@@ -445,10 +470,10 @@ class Proyecto(models.Model):
             return None
         if self.estado == 'completado':
             return 0
-        
+
         dias = (self.fecha_fin_estimada - timezone.now().date()).days
         return max(0, dias)
-    
+
     @property
     def progreso(self):
         """Calcula el progreso aproximado del proyecto."""
@@ -456,20 +481,16 @@ class Proyecto(models.Model):
             return 100
         if self.estado == 'planificacion':
             return 0
-            
+
         # Si está en ejecución, calcular basado en tiempo transcurrido
         if self.fecha_fin_estimada and self.fecha_inicio:
             duracion_total = (self.fecha_fin_estimada - self.fecha_inicio).days
             if duracion_total <= 0:
                 return 50  # Valor por defecto si las fechas no son coherentes
-                
             dias_transcurridos = (timezone.now().date() - self.fecha_inicio).days
             progreso = min(99, int((dias_transcurridos / duracion_total) * 100))
             return max(1, progreso)  # Al menos 1% si ya comenzó
-            
         return 50  # Valor por defecto
-
-
 class MaterialProyecto(models.Model):
     """Materiales asignados a un proyecto específico."""
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='materiales')
@@ -479,42 +500,42 @@ class MaterialProyecto(models.Model):
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
     lote = models.ForeignKey(LoteProducto, on_delete=models.SET_NULL, blank=True, null=True)
     notas = models.TextField(blank=True, null=True)
-    
     class Meta:
+        """Opciones adicionales para el modelo MaterialProyecto."""
         verbose_name = 'Material de Proyecto'
         verbose_name_plural = 'Materiales de Proyectos'
         unique_together = ['proyecto', 'producto', 'lote']
-    
+
     def __str__(self):
+        # pylint: disable=no-member
         return f"{self.producto.nombre} - {self.proyecto.nombre}"
-    
+
     @property
     def costo_total(self):
         """Calcula el costo total de este material en el proyecto."""
         # Obtener el precio más reciente del producto
-        ultimo_precio = HistorialPrecio.objects.filter(producto=self.producto).order_by('-fecha').first()
+        # pylint: disable=no-member
+        ultimo_precio = HistorialPrecio.objects.filter(
+            producto=self.producto).order_by('-fecha').first()
         precio_unitario = ultimo_precio.precio_unitario if ultimo_precio else 0
         return precio_unitario * self.cantidad_asignada
-    
+
     @property
     def cantidad_disponible(self):
         """Calcula la cantidad que aún queda disponible para usar."""
         return self.cantidad_asignada - self.cantidad_utilizada
-    
+
     @property
     def porcentaje_utilizado(self):
         """Calcula el porcentaje de material utilizado."""
         if self.cantidad_asignada == 0:
             return 0
         return (self.cantidad_utilizada / self.cantidad_asignada) * 100
-
 class ConfiguracionSistema(models.Model):
     """Configuración global del sistema de control de inventario.
-
     Este modelo permite almacenar y modificar parámetros clave que controlan
     el comportamiento del sistema sin necesidad de cambiar el código fuente.
     """
-
     CLAVES_CHOICES = [
         ('umbral_stock_critico', 'Umbral de Stock Crítico'),
         ('umbral_stock_bajo', 'Umbral de Stock Bajo'),
@@ -545,12 +566,14 @@ class ConfiguracionSistema(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
+        """Opciones adicionales para el modelo ConfiguracionSistema."""
         verbose_name = 'Configuración del Sistema'
         verbose_name_plural = 'Configuraciones del Sistema'
         ordering = ['clave']
 
     def __str__(self):
         """Retorna una representación legible del parámetro configurado."""
+        # pylint: disable=no-member
         return f"{self.get_clave_display()}: {self.valor}"
 
 class AuditoriaInformeInventario(models.Model):
@@ -558,7 +581,8 @@ class AuditoriaInformeInventario(models.Model):
 
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     fecha = models.DateTimeField(auto_now_add=True)
-    filtros_aplicados = models.TextField(help_text="Filtros usados al generar el informe (formato JSON o texto plano).")
+    filtros_aplicados = models.TextField(
+        help_text="Filtros usados al generar el informe (formato JSON o texto plano).")
     tipo_exportacion = models.CharField(
         max_length=10,
         choices=[('pdf', 'PDF'), ('excel', 'Excel')],
@@ -567,4 +591,7 @@ class AuditoriaInformeInventario(models.Model):
     total_registros = models.PositiveIntegerField(help_text="Cantidad de productos exportados.")
 
     def __str__(self):
-        return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
+        """Retorna una representación legible del informe de auditoría."""
+        # pylint: disable=no-member
+        return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime(
+            '%Y-%m-%d %H:%M')}"

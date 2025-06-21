@@ -1,5 +1,6 @@
+"""Este módulo contiene filtros personalizados para Django templates."""
 from django import template
-from decimal import Decimal
+
 
 register = template.Library()
 
@@ -66,6 +67,7 @@ def clp(value):
     Ejemplo: 7979419.56 → $7.979.420
     """
     try:
-        return "${:,.0f}".format(float(value)).replace(",", ".")
+        formatted = f"${float(value):,.0f}".replace(",", ".")
+        return formatted
     except (ValueError, TypeError):
         return "$0"

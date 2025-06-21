@@ -68,25 +68,21 @@
           {% endif %}
         </td>
         <td>
-          <a href="{% url 'inventario:editar_producto' producto.id %}" class="btn btn-sm btn-primary">Editar</a>
-          <a href="{% url 'inventario:detalle_producto_lotes' producto.id %}" class="btn btn-sm btn-info">Lotes</a>
-          <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalConfirmarEliminar" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}">Eliminar</a>
+          <a href="{% url 'inventario:editar_producto' producto.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+          <a href="{% url 'inventario:detalle_producto_lotes' producto.id %}" class="btn btn-sm btn-outline-info">Lotes</a>
+          <a href="#" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalConfirmarEliminar" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}">Eliminar</a>
           
           {% if producto.block_status %}
-              <!-- If blocked, show unblock form -->
               <form style="display: inline;" method="post" action="{% url 'inventario:toggle_block_product' producto.id %}">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('¿Está seguro que desea desbloquear este producto?')">
+                  <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('¿Está seguro que desea desbloquear este producto?')">
                       <i class="bi bi-unlock"></i> Desbloquear
                   </button>
               </form>
           {% else %}
-              <!-- If not blocked, show block form with modal -->
-              <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#blockModal{{ producto.id }}">
+              <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#blockModal{{ producto.id }}">
                   <i class="bi bi-lock"></i> Bloquear
               </button>
-              
-              <!-- Individual modal for each product -->
               <div class="modal fade" id="blockModal{{ producto.id }}" tabindex="-1">
                   <div class="modal-dialog">
                       <div class="modal-content">
@@ -164,7 +160,7 @@
   </a>
 </div>
 
-<!-- MODALES -->
+<!-- MODAL ELIMINACIÓN -->
 <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -182,7 +178,6 @@
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
