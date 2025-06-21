@@ -237,10 +237,11 @@ class Proveedor(models.Model):
     def get_calificacion_promedio(self):
         """Calcula la calificación promedio del proveedor."""
         # pylint: disable=no-member
-        evaluaciones = getattr(self, 'evaluaciones', None)
-        if evaluaciones:
-            return sum(e.calificacion for e in evaluaciones.all()) / evaluaciones.count()
-        return 0
+        evaluaciones = self.evaluaciones.all()
+        cantidad = evaluaciones.count()
+        if cantidad == 0:
+            return 0
+        return sum(e.calificacion for e in evaluaciones) / cantidad
 
     def get_total_compras(self):
         """Obtiene el total de compras realizadas a este proveedor."""
