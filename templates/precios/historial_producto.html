@@ -1,6 +1,6 @@
-{# /templates/precios/historial_producto.html #}
 {% extends 'base.html' %}
 {% load static %}
+{% load inventario_extras %}
 {% block title %}Historial de Precios - {{ producto.nombre }}{% endblock %}
 {% block content %}
 
@@ -23,7 +23,7 @@
         <div class="card bg-primary text-white">
             <div class="card-body text-center">
                 <h6>Precio Actual</h6>
-                <h4>${{ stats.precio_actual|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_actual|clp }}</h4>
             </div>
         </div>
     </div>
@@ -31,7 +31,7 @@
         <div class="card bg-success text-white">
             <div class="card-body text-center">
                 <h6>Precio Mínimo</h6>
-                <h4>${{ stats.precio_minimo|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_minimo|clp }}</h4>
             </div>
         </div>
     </div>
@@ -39,7 +39,7 @@
         <div class="card bg-danger text-white">
             <div class="card-body text-center">
                 <h6>Precio Máximo</h6>
-                <h4>${{ stats.precio_maximo|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_maximo|clp }}</h4>
             </div>
         </div>
     </div>
@@ -47,7 +47,7 @@
         <div class="card bg-warning text-white">
             <div class="card-body text-center">
                 <h6>Precio Promedio</h6>
-                <h4>${{ stats.precio_promedio|floatformat:2 }}</h4>
+                <h4>{{ stats.precio_promedio|clp }}</h4>
             </div>
         </div>
     </div>
@@ -115,12 +115,8 @@
                 <tbody>
                     {% for precio in historial %}
                     <tr>
-                        <td>
-                            {{ precio.fecha|date:"d/m/Y H:i" }}
-                        </td>
-                        <td>
-                            <span class="h5 text-success">${{ precio.precio_unitario }}</span>
-                        </td>
+                        <td>{{ precio.fecha|date:"d/m/Y H:i" }}</td>
+                        <td><span class="h5 text-success">{{ precio.precio_unitario|clp }}</span></td>
                         <td>
                             {% if precio.proveedor %}
                                 <span class="badge" style="background-color: {{ precio.proveedor.nombre }}; color: white;">
@@ -134,14 +130,14 @@
                             {% if precio.variacion_precio %}
                                 {% if precio.variacion_precio > 0 %}
                                     <span class="text-danger">
-                                        <i class="bi bi-arrow-up"></i> +${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-up"></i> +{{ precio.variacion_precio|clp }}
                                         {% if precio.porcentaje_variacion %}
                                             <br><small>(+{{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
                                         {% endif %}
                                     </span>
                                 {% elif precio.variacion_precio < 0 %}
                                     <span class="text-success">
-                                        <i class="bi bi-arrow-down"></i> ${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-down"></i> {{ precio.variacion_precio|clp }}
                                         {% if precio.porcentaje_variacion %}
                                             <br><small>({{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
                                         {% endif %}
@@ -204,18 +200,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('priceChart').getContext('2d');
-    
+
     const fechas = {{ fechas_data|safe }};
     const precios = {{ precios_data|safe }};
     const proveedores = {{ proveedores_data|safe }};
     const colores = {{ colores_data|safe }};
-    
+
     new Chart(ctx, {
         type: 'line',
         data: {
             labels: fechas.reverse(),
             datasets: [{
-                label: 'Precio ($)',
+                label: 'Precio CLP',
                 data: precios.reverse(),
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -247,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: false,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toFixed(2);
+                            return '$' + value.toLocaleString('es-CL');
                         }
                     }
                 }

@@ -1,4 +1,3 @@
-{# /templates/precios/historial_precios.html #}
 {% extends 'base.html' %}
 {% load static %}
 {% load inventario_extras %}
@@ -64,7 +63,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Precio Promedio</h5>
-                        <h3>${{ stats.precio_promedio|floatformat:2 }}</h3>
+                        <h3>{{ stats.precio_promedio|clp }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="bi bi-currency-dollar fs-1"></i>
@@ -84,8 +83,6 @@
         <a href="/inventario/precios/comparar/" class="btn btn-info">
             <i class="bi bi-bar-chart"></i> Comparar Proveedores
         </a>
-        <div class="btn-group" role="group">
-        </div>
     </div>
 </div>
 
@@ -155,7 +152,7 @@
                             <br><small class="text-muted">{{ precio.producto.categoria }}</small>
                         </td>
                         <td>
-                            <span class="h5 text-success">${{ precio.precio_unitario }}</span>
+                            <span class="h5 text-success">{{ precio.precio_unitario|clp }}</span>
                         </td>
                         <td>
                             {% if precio.proveedor %}
@@ -172,14 +169,14 @@
                             {% if precio.variacion_precio %}
                                 {% if precio.variacion_precio > 0 %}
                                     <span class="text-danger">
-                                        <i class="bi bi-arrow-up"></i> +${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-up"></i> +{{ precio.variacion_precio|clp }}
                                         {% if precio.porcentaje_variacion %}
                                             <br><small>(+{{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
                                         {% endif %}
                                     </span>
                                 {% elif precio.variacion_precio < 0 %}
                                     <span class="text-success">
-                                        <i class="bi bi-arrow-down"></i> ${{ precio.variacion_precio|floatformat:2 }}
+                                        <i class="bi bi-arrow-down"></i> {{ precio.variacion_precio|clp }}
                                         {% if precio.porcentaje_variacion %}
                                             <br><small>({{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
                                         {% endif %}
@@ -242,16 +239,15 @@
     </div>
 </div>
 
-<!-- Pagination -->
 {% if page_obj.has_other_pages %}
 <nav aria-label="Navegación de páginas" class="mt-4">
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page=1{% if request.GET.producto %}&producto={{ request.GET.producto }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">Primera</a>
+                <a class="page-link" href="?page=1">Primera</a>
             </li>
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.producto %}&producto={{ request.GET.producto }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">Anterior</a>
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
             </li>
         {% endif %}
         
@@ -261,10 +257,10 @@
         
         {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.producto %}&producto={{ request.GET.producto }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">Siguiente</a>
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
             </li>
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.producto %}&producto={{ request.GET.producto }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">Última</a>
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
             </li>
         {% endif %}
     </ul>
