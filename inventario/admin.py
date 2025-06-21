@@ -2,8 +2,8 @@
 
 from django.contrib import admin
 from .models import (
-    Producto, LoteProducto, HistorialLote, MovimientoInventario,
-    Proveedor, CompraProveedor, EvaluacionProveedor, KitProducto,
+    Producto, MovimientoInventario,
+    Proveedor, KitProducto,
     ProductoEnKit, HistorialPrecio, InformeInventario, AlertaStock,
     AuditoriaInventario, Proyecto, MaterialProyecto, ConfiguracionSistema
 )

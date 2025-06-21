@@ -1,12 +1,11 @@
-import os
+""" Utilidades para la generación de informes de inventario en PDF y Excel. """
+from datetime import datetime
 from io import BytesIO
-from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
-from datetime import datetime
 
 def exportar_pdf_inventario(productos, request):
     """
