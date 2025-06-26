@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Proyecto{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-tools"></i> {{ action }} Proyecto</h2>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre del Proyecto:</label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}
+                        <div class="text-danger">{{ form.nombre.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.responsable.id_for_label }}" class="form-label">Responsable:</label>
+                    {{ form.responsable }}
+                    {% if form.responsable.errors %}
+                        <div class="text-danger">{{ form.responsable.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha de Inicio:</label>
+                    {{ form.fecha_inicio }}
+                    {% if form.fecha_inicio.errors %}
+                        <div class="text-danger">{{ form.fecha_inicio.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.fecha_fin_estimada.id_for_label }}" class="form-label">Fecha de Finalización Estimada:</label>
+                    {{ form.fecha_fin_estimada }}
+                    {% if form.fecha_fin_estimada.errors %}
+                        <div class="text-danger">{{ form.fecha_fin_estimada.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="{{ form.estado.id_for_label }}" class="form-label">Estado:</label>
+                    {{ form.estado }}
+                    {% if form.estado.errors %}
+                        <div class="text-danger">{{ form.estado.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-label">Descripción:</label>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}
+                    <div class="text-danger">{{ form.descripcion.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.notas.id_for_label }}" class="form-label">Notas:</label>
+                {{ form.notas }}
+                {% if form.notas.errors %}
+                    <div class="text-danger">{{ form.notas.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">{{ action }} Proyecto</button>
+                {% if proyecto %}
+                    <a href="{% url 'inventario:detalle_proyecto' proyecto.id %}" class="btn btn-secondary">Cancelar</a>
+                {% else %}
+                    <a href="{% url 'inventario:listar_proyectos' %}" class="btn btn-secondary">Cancelar</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

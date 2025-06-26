@@ -77,48 +77,69 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const productoSelect = document.getElementById('{{ form.producto.id_for_label }}');
-  const loteSelect = document.getElementById('{{ form.lote.id_for_label }}');
-  const stockInfo = document.getElementById('stock-info');
-
-  productoSelect.addEventListener('change', function() {
-    const productoId = this.value;
-
-    if (productoId) {
-      fetch(`/api/productos/${productoId}/lotes/`)
-        .then(response => response.json())
-        .then(data => {
-          loteSelect.innerHTML = '<option value="">Seleccionar lote (opcional)</option>';
-
-          data.lotes.forEach(lote => {
-            const option = document.createElement('option');
-            option.value = lote.id;
-            option.textContent = `${lote.numero_lote} (${lote.cantidad_actual} disponibles)`;
-            loteSelect.appendChild(option);
-          });
-
-          stockInfo.innerHTML = `<strong>Stock Total:</strong> ${data.stock_total}<br><strong>Lotes Activos:</strong> ${data.lotes.length}`;
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          stockInfo.innerHTML = '<span class="text-danger">Error al cargar información</span>';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the product and lote select elements
+        const productoSelect = document.getElementById('{{ form.producto.id_for_label }}');
+        const loteSelect = document.getElementById('{{ form.lote.id_for_label }}');
+        
+        // Initialize - disable lote select until a product is chosen
+        loteSelect.disabled = true;
+        
+        // Function to load lotes for a product
+        function cargarLotes(productoId) {
+            if (!productoId) {
+                loteSelect.innerHTML = '<option value="">Seleccione un lote</option>';
+                loteSelect.disabled = true;
+                return;
+            }
+            
+            // Get the CSRF token
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Updated URL with the correct namespace/path
+            fetch(`/inventario/api/productos/${productoId}/lotes/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar lotes');
+                }
+                return response.json();
+            })
+            .then(lotes => {
+                loteSelect.innerHTML = '<option value="">Seleccione un lote</option>';
+                
+                if (lotes.length === 0) {
+                    loteSelect.innerHTML += '<option value="" disabled>No hay lotes disponibles</option>';
+                    loteSelect.disabled = true;
+                } else {
+                    lotes.forEach(lote => {
+                        const fechaVencimiento = new Date(lote.fecha_vencimiento).toLocaleDateString();
+                        loteSelect.innerHTML += `<option value="${lote.id}">${lote.numero_lote} - Vence: ${fechaVencimiento} (${lote.cantidad_actual} disponibles)</option>`;
+                    });
+                    loteSelect.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loteSelect.innerHTML = '<option value="">Error al cargar lotes</option>';
+                loteSelect.disabled = true;
+            });
+        }
+        
+        // Add event listener to product select
+        productoSelect.addEventListener('change', function() {
+            cargarLotes(this.value);
         });
-    } else {
-      loteSelect.innerHTML = '<option value="">Seleccionar lote (opcional)</option>';
-      stockInfo.innerHTML = '<span class="text-muted">Selecciona un producto</span>';
-    }
-  });
-
-  loteSelect.addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
-    if (selectedOption.value) {
-      const stockMatch = selectedOption.textContent.match(/\((\d+) disponibles\)/);
-      if (stockMatch) {
-        stockInfo.innerHTML += `<br><strong>Stock en Lote:</strong> ${stockMatch[1]}`;
-      }
-    }
-  });
-});
+        
+        // If a product is already selected (e.g., form resubmission after error)
+        if (productoSelect.value) {
+            cargarLotes(productoSelect.value);
+        }
+    });
 </script>
 {% endblock %}

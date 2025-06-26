@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; }
+    h2 { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+    th { background-color: #f0f0f0; }
+    .filtros { margin-top: 10px; font-size: 12px; }
+    .filtros strong { display: inline-block; width: 120px; }
+  </style>
+</head>
+<body>
+  <h2>Informe de Inventario</h2>
+  <p><strong>Fecha de generación:</strong> {{ fecha }}</p>
+
+  {% if filtros %}
+  <div class="filtros">
+    <p><strong>Filtros aplicados:</strong></p>
+    <ul>
+      {% for clave, valor in filtros.items %}
+        {% if valor %}
+          <li><strong>{{ clave|title }}:</strong> {{ valor }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Ubicación</th>
+        <th>Categoría</th>
+        <th>Proveedor</th>
+        <th>Stock</th>
+        <th>Stock Mínimo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr>
+        <td>{{ p.nombre }}</td>
+        <td>{{ p.ubicacion }}</td>
+        <td>{{ p.categoria }}</td>
+        <td>{{ p.proveedor }}</td>
+        <td>{{ p.stock_actual }}</td>
+        <td>{{ p.stock_minimo }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

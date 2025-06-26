@@ -7,8 +7,8 @@
         <p class="text-muted">Detalles del proveedor y historial de compras</p>
     </div>
     <div class="col-auto">
-        <a href="{% url 'inventario:registrar_compra' proveedor.id %}" class="btn btn-success">
-            <i class="bi bi-cart-plus"></i> Registrar Compra
+        <a href="{% url 'inventario:historial_precios_proveedor' proveedor.id %}" class="btn btn-info">
+            <i class="bi bi-graph-up"></i> Historial de Precios
         </a>
         <a href="{% url 'inventario:evaluar_proveedor' proveedor.id %}" class="btn btn-warning">
             <i class="bi bi-star"></i> Evaluar
@@ -37,7 +37,7 @@
             <div class="col-md-6">
                 <div class="card bg-primary text-white">
                     <div class="card-body text-center">
-                        <h3>{{ proveedor.get_total_compras }}</h3>
+                        <h3>{{ precio_stats.total_transacciones }}</h3>
                         <p class="mb-0">Total Compras</p>
                     </div>
                 </div>
@@ -51,40 +51,72 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Price Statistics (New Section) -->
+        {% if precio_stats %}
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Estadísticas de Precios</h5>
+                <a href="{% url 'inventario:historial_precios_proveedor' proveedor.id %}" class="btn btn-sm btn-outline-primary">
+                    Ver historial completo
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">Precio Promedio</small>
+                        <h5>${{ precio_stats.precio_promedio_general|floatformat:2 }}</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Productos Suministrados</small>
+                        <h5>{{ precio_stats.productos_suministrados }}</h5>
+                    </div>
+                    <div class="col-md-6 mt-3">
+                        <small class="text-muted">Rango de Precios</small>
+                        <h5>${{ precio_stats.precio_minimo|floatformat:2 }} - ${{ precio_stats.precio_maximo|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Purchase History -->
+<!-- Recent Prices (New Section) -->
+{% if ultimos_precios %}
 <div class="card mb-4">
-    <div class="card-header">
-        <h5>Historial de Compras</h5>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Últimos Precios</h5>
+        <a href="{% url 'inventario:historial_precios_proveedor' proveedor.id %}" class="btn btn-sm btn-outline-primary">
+            Ver todos
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-striped mb-0">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-secondary">
                     <tr>
                         <th>Producto</th>
-                        <th>Cantidad</th>
-                        <th>Precio Unitario</th>
-                        <th>Total</th>
+                        <th>Último Precio</th>
                         <th>Fecha</th>
-                        <th>Factura</th>
+                        <th>Variación</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for compra in compras %}
+                    {% for producto, datos in ultimos_precios.items %}
                     <tr>
-                        <td>{{ compra.producto.nombre }}</td>
-                        <td>{{ compra.cantidad }}</td>
-                        <td>${{ compra.precio_unitario }}</td>
-                        <td>${{ compra.total }}</td>
-                        <td>{{ compra.fecha_compra|date:"d/m/Y H:i" }}</td>
-                        <td>{{ compra.numero_factura|default:"N/A" }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No hay compras registradas.</td>
+                        <td>{{ producto }}</td>
+                        <td class="text-success">${{ datos.precio|floatformat:2 }}</td>
+                        <td>{{ datos.fecha|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if datos.variacion > 0 %}
+                                <span class="text-danger">+{{ datos.variacion|floatformat:2 }}%</span>
+                            {% elif datos.variacion < 0 %}
+                                <span class="text-success">{{ datos.variacion|floatformat:2 }}%</span>
+                            {% else %}
+                                <span class="text-muted">Sin cambio</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -92,6 +124,9 @@
         </div>
     </div>
 </div>
+{% endif %}
+
+
 
 <!-- Evaluations -->
 <div class="card">

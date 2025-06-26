@@ -110,8 +110,8 @@
                             {% endwith %}
                         </td>
                         <td>
-                            <a href="{% url 'editar_lote' lote.id %}" class="btn btn-sm btn-primary">Editar</a>
-                            <a href="{% url 'historial_lote_individual' lote.id %}" class="btn btn-sm btn-info">Historial</a>
+                            <a href="{% url 'inventario:editar_lote' lote.id %}" class="btn btn-sm btn-primary">Editar</a>
+                            <a href="{% url 'inventario:historial_lote_individual' lote.id %}" class="btn btn-sm btn-info">Historial</a>
                         </td>
                     </tr>
                     {% empty %}

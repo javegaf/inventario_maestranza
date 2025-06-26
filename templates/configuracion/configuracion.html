@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center fw-bold">Configuración General del Sistema</h2>
+
+  <form method="post" class="card shadow-sm p-4">
+    {% csrf_token %}
+    {% for field in form.visible_fields %}
+      <div class="mb-3">
+        {# 🔧 Switch visual para modo mantenimiento #}
+        {% if field.name == "modo_mantenimiento" %}
+          <div class="form-check form-switch">
+            <input type="checkbox"
+                   class="form-check-input"
+                   name="{{ field.html_name }}"
+                   id="{{ field.id_for_label }}"
+                   {% if field.value == "True" or field.value %}checked{% endif %}>
+            <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </div>
+          {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+          {% endif %}
+
+        {# ✅ Select para valores booleanos comunes #}
+        {% elif field.name == "auto_generar_orden_compra" or field.name == "registro_de_auditorias" or field.name == "mostrar_mensaje_bienvenida" %}
+          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+          <select name="{{ field.html_name }}" class="form-select" id="{{ field.id_for_label }}">
+            <option value="True" {% if field.value == "True" %}selected{% endif %}>Activado</option>
+            <option value="False" {% if field.value == "False" %}selected{% endif %}>Desactivado</option>
+          </select>
+          {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+          {% endif %}
+
+        {# 📅 Select con formatos de fecha comunes #}
+        {% elif field.name == "formato_fecha_preferido" %}
+          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+          <select name="{{ field.html_name }}" class="form-select" id="{{ field.id_for_label }}">
+            <option value="%d/%m/%Y" {% if field.value == "%d/%m/%Y" %}selected{% endif %}>dd/mm/aaaa</option>
+            <option value="%Y-%m-%d" {% if field.value == "%Y-%m-%d" %}selected{% endif %}>aaaa-mm-dd</option>
+            <option value="%m/%d/%Y" {% if field.value == "%m/%d/%Y" %}selected{% endif %}>mm/dd/aaaa</option>
+          </select>
+          {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+          {% endif %}
+
+        {# 📉 Sliders para umbrales #}
+        {% elif field.name == "umbral_stock_critico" or field.name == "umbral_stock_bajo" %}
+          <label for="{{ field.id_for_label }}" class="form-label">
+            {{ field.label }}: <span id="val-{{ field.name }}">{{ field.value }}</span>
+          </label>
+          <input type="range"
+                 name="{{ field.html_name }}"
+                 id="{{ field.id_for_label }}"
+                 min="1"
+                 max="100"
+                 step="1"
+                 value="{{ field.value }}"
+                 class="form-range"
+                 oninput="document.getElementById('val-{{ field.name }}').innerText = this.value">
+          {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+          {% endif %}
+
+        {# 🔤 Campo común de texto (proveedor, etc.) #}
+        {% else %}
+          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+            <small class="form-text text-muted">{{ field.help_text }}</small>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    <div class="text-end">
+      <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

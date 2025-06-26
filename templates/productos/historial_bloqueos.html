@@ -50,13 +50,14 @@
                             </td>
                             <td>
                                 {% if auditoria.fecha_fin %}
-                                    {{ auditoria.fecha_fin|timeuntil:auditoria.fecha_inicio }}
+                                    <!-- Fix: Change the order of dates for timeuntil -->
+                                    {{ auditoria.fecha_inicio|timeuntil:auditoria.fecha_fin }}
                                 {% else %}
-                                    {{ auditoria.fecha_inicio|timesince }} (en curso)
+                                    {{ auditoria.fecha_inicio|timesince }}
                                 {% endif %}
                             </td>
-                            <td>{{ auditoria.usuario_auditor }}</td>
-                            <td>{{ auditoria.motivo }}</td>
+                            <td>{{ auditoria.usuario_auditor.username }}</td>
+                            <td>{{ auditoria.motivo|default:"Sin motivo especificado" }}</td>
                         </tr>
                         {% empty %}
                         <tr>
@@ -71,6 +72,13 @@
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- Add back button -->
+    <div class="mt-3">
+        <a href="{% url 'inventario:listar_productos' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Productos
+        </a>
     </div>
 </div>
 {% endblock %}
