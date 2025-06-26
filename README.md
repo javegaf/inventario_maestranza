@@ -174,7 +174,7 @@ python manage.py migrate
 Ejecuta estos comandos uno a uno:
 
 ```bash
-python manage.py loaddata carga_datos/datos_usuarios.json
+python manage.py migrate
 ```
 ```bash
 python manage.py loaddata carga_datos/datos_maestranza.json
