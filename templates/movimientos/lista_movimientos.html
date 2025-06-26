@@ -175,37 +175,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-            {% if movimientos.paginator.num_pages > 1 %}
-                <nav aria-label="Paginación de movimientos">
-                <ul class="pagination justify-content-center mt-4">
-
-                    {% if movimientos.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ movimientos.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" aria-label="Anterior">
-                        <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    {% for num in movimientos.paginator.page_range %}
-                    {% if num == movimientos.number %}
-                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > movimientos.number|add:'-3' and num < movimientos.number|add:'3' %}
-                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}">{{ num }}</a></li>
-                    {% endif %}
-                    {% endfor %}
-
-                    {% if movimientos.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ movimientos.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" aria-label="Siguiente">
-                        <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
-                    {% endif %}
-
-                </ul>
-                </nav>
-                {% endif %}
         </div>
     </div>
 </div>
