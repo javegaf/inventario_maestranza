@@ -20,7 +20,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db import models
 from django.db.models import Count, F, Q
 from django.http import HttpResponse, JsonResponse
@@ -168,9 +168,10 @@ def eliminar_producto(request, producto_id):
 def lista_movimientos(request):
     """Vista para listar los movimientos de inventario con filtros."""
     # pylint: disable=no-member
-    movimientos = MovimientoInventario.objects.all().order_by('-fecha')
+    
     form = MovimientoFiltroForm(request.GET or None)
-
+    movimientos_qs = MovimientoInventario.objects.all().order_by('-fecha')
+    movimientos = movimientos_qs  # por defecto
     # Revisa si el usuario es staff o no
     show_permission_alert = False
     if request.user.is_authenticated and not request.user.is_staff:
@@ -186,23 +187,38 @@ def lista_movimientos(request):
     if form.is_valid():
         if form.cleaned_data.get('fecha_inicio'):
             fecha_inicio = form.cleaned_data['fecha_inicio']
-            movimientos = movimientos.filter(
+            movimientos_qs = movimientos.filter(
                 fecha__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
         if form.cleaned_data.get('fecha_fin'):
             fecha_fin = form.cleaned_data['fecha_fin']
-            movimientos = movimientos.filter(
+            movimientos_qs = movimientos.filter(
                 fecha__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
         if form.cleaned_data.get('tipo_movimiento'):
-            movimientos = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
+            movimientos_qs = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
         if form.cleaned_data.get('producto'):
-            movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
+            movimientos_qs = movimientos.filter(producto=form.cleaned_data['producto'])
         if form.cleaned_data.get('usuario'):
-            movimientos = movimientos.filter(usuario=form.cleaned_data['usuario'])
+            movimientos_qs = movimientos.filter(usuario=form.cleaned_data['usuario'])
+    # Paginación
+    paginator = Paginator(movimientos_qs, 5)
+    page_number = request.GET.get('page')
+    try:
+        movimientos = paginator.page(page_number)
+    except PageNotAnInteger:
+        movimientos = paginator.page(1)
+    except EmptyPage:
+        movimientos = paginator.page(paginator.num_pages)
 
+    # Excluir 'page' del querystring para mantener filtros
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    querystring = query_params.urlencode()
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
         'filtro_form': form,
-        'show_permission_alert': show_permission_alert
+        'show_permission_alert': show_permission_alert,
+        'querystring': querystring
     })
 
 # Keep crear_movimiento unchanged for now - it can still be accessed directly
