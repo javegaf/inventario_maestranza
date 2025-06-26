@@ -27,6 +27,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 # =====================================
 # Imports de terceros
@@ -40,7 +41,7 @@ from .utils import exportar_excel_inventario, exportar_pdf_inventario
 
 
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto, ProductoEnKit,
+    Producto, MovimientoInventario, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
     Proyecto, MaterialProyecto, AuditoriaInformeInventario
@@ -99,7 +100,7 @@ def crear_producto(request):
     form = ProductoForm(request.POST or None)
     if form.is_valid():
         form.save()
-        return redirect('listar_productos')
+        return redirect('inventario:listar_productos')
     return render(request, 'productos/formulario_producto.html', {'form': form})
 
 @login_required
@@ -116,7 +117,6 @@ def editar_producto(request, producto_id):
                 producto_editado.fecha_vencimiento = fecha_actual
             producto_editado.save()
             # Actualizar el stock mínimo en las alertas
-            
             if producto.stock_minimo > 0:
                 # pylint: disable=no-member
                 mensaje_alerta = f"Stock mínimo actualizado: {producto_editado.stock_minimo}"
@@ -137,32 +137,28 @@ def editar_producto(request, producto_id):
     return render(request, 'productos/form_producto.html', {'form': form})
 
 @login_required
+@require_POST
 def eliminar_producto(request, producto_id):
-    """Vista para eliminar un producto existente."""
+    """Elimina un producto si no tiene registros asociados."""
+    # pylint: disable=no-member
     producto = get_object_or_404(Producto, id=producto_id)
 
-    # Revisa si existen lotes o movimientos asociados al producto
-    # pylint: disable=no-member
+    # Verifica si tiene dependencias
     lotes_existentes = LoteProducto.objects.filter(producto=producto).exists()
     movimientos_existentes = MovimientoInventario.objects.filter(producto=producto).exists()
 
-    if request.method == 'POST':
-        if 'confirmar' in request.POST:
-            nombre_producto = producto.nombre
+    if lotes_existentes or movimientos_existentes:
+        messages.warning(
+            request, 'No se puede eliminar el producto porque tiene lotes o movimientos asociados.')
+    else:
+        try:
+            nombre = producto.nombre
+            producto.delete()
+            messages.success(request, f'Producto "{nombre}" eliminado correctamente.')
+        except Exception as e:
+            messages.error(request, f'Error al eliminar el producto: {e}')
 
-            try:
-                producto.delete()
-                messages.success(request, f'Producto "{nombre_producto}" eliminado correctamente.')
-            except Exception as e:
-                messages.error(request, f'Error al eliminar el producto: {e}')
-
-            return redirect('inventario:listar_productos')  # Add namespace
-
-    return render(request, 'productos/confirmar_eliminar_producto.html', {
-        'producto': producto,
-        'lotes_existentes': lotes_existentes,
-        'movimientos_existentes': movimientos_existentes,
-    })
+    return redirect('inventario:listar_productos')
 
 # Movimientos
 
@@ -170,7 +166,6 @@ def eliminar_producto(request, producto_id):
 def lista_movimientos(request):
     """Vista para listar los movimientos de inventario con filtros."""
     # pylint: disable=no-member
-    
     form = MovimientoFiltroForm(request.GET or None)
     movimientos_qs = MovimientoInventario.objects.all().order_by('-fecha')
     movimientos = movimientos_qs  # por defecto
@@ -405,7 +400,7 @@ def alertas_stock(request):
             alerta = AlertaStock.objects.get(id=alerta_id)
             alerta.atendido = True
             alerta.save()
-            return redirect('alertas_stock')
+            return redirect('inventario:alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
 

@@ -173,7 +173,10 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <a href="#" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</a>
+        <form method="post" id="formEliminarProducto" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Eliminar</button>
+        </form>
       </div>
     </div>
   </div>
@@ -196,7 +199,7 @@
     const productoId = boton.getAttribute('data-id');
     const productoNombre = boton.getAttribute('data-nombre');
     modalEliminar.querySelector('#productoAEliminar').textContent = productoNombre;
-    modalEliminar.querySelector('#btnConfirmarEliminar').href = `/inventario/productos/eliminar/${productoId}/`;
+    modalEliminar.querySelector('#formEliminarProducto').action = `/inventario/productos/eliminar/${productoId}/`;
   });
 </script>
 <script src="{% static 'js/blockproduct.js' %}"></script>
