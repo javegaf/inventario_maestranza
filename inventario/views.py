@@ -118,16 +118,12 @@ def editar_producto(request, producto_id):
             # Actualizar el stock mínimo en las alertas
             if producto.stock_minimo > 0:
                 # pylint: disable=no-member
-                mensaje_alerta = f"Stock mínimo actualizado: {producto_editado.stock_minimo}"
                 AlertaStock.objects.update_or_create(
-                    producto=producto_editado,
-                    atendido=False,
-                    defaults={
-                        'mensaje': mensaje_alerta,
-                        'fecha_alerta': timezone.now()
-                    }
+                    producto=producto,
+                    tipo_alerta='minimo',
+                    defaults={'umbral': producto.stock_minimo}
                 )
-                
+
             messages.success(request, "Producto actualizado correctamente.")
             return redirect('inventario:listar_productos')
     else:
@@ -388,7 +384,7 @@ def alertas_stock(request):
             alerta = AlertaStock.objects.get(id=alerta_id)
             alerta.atendido = True
             alerta.save()
-            return redirect('inventario:alertas_stock')
+            return redirect('alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
 
