@@ -71,3 +71,14 @@ def clp(value):
         return formatted
     except (ValueError, TypeError):
         return "$0"
+
+@register.filter
+def get_estado_color(value):
+    colores = {
+        'sugerida': 'warning',
+        'pendiente': 'info',
+        'aprobada': 'primary',
+        'recepcionada': 'success',
+        'cancelada': 'secondary',
+    }
+    return colores.get(value, 'light')

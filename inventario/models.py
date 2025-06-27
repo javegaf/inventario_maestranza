@@ -41,7 +41,7 @@ class LoteProducto(models.Model):
     """Modelo que representa un lote específico de un producto."""
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes')
     numero_lote = models.CharField(max_length=50, unique=True)
-    fecha_vencimiento = models.DateField()
+    fecha_vencimiento = models.DateField(null=True, blank=True)
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
     cantidad_inicial = models.PositiveIntegerField()
     cantidad_actual = models.PositiveIntegerField()
@@ -595,3 +595,54 @@ class AuditoriaInformeInventario(models.Model):
         # pylint: disable=no-member
         return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime(
             '%Y-%m-%d %H:%M')}"
+            
+class OrdenCompra(models.Model):
+    ESTADOS = [
+        ('sugerida', 'Sugerida'),
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('recepcionada', 'Recepcionada'),
+        ('cancelada', 'Cancelada'),
+    ]
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='sugerida')
+    observaciones = models.TextField(blank=True)
+
+    # Nuevos campos
+    usuario_aprobacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_aprobadas'
+    )
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True)
+    fecha_recepcion = models.DateTimeField(null=True, blank=True)
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Orden #{self.id} - {self.get_estado_display()}"
+
+class ItemOrdenCompra(models.Model):
+    orden = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.producto.nombre} x {self.cantidad}"
+    def subtotal(self):
+        return self.cantidad * (self.precio_unitario or 0)
+
+class OrdenCompraLog(models.Model):
+    orden = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='logs')
+    fecha = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20)
+    descripcion = models.TextField()
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"{self.fecha.strftime('%d/%m/%Y %H:%M')} - {self.estado}"
+    

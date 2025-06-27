@@ -6,6 +6,9 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
+from .models import Producto, OrdenCompra, ItemOrdenCompra
+from django.db import transaction
+from django.db.models import F
 
 def exportar_pdf_inventario(productos, request):
     """
@@ -70,3 +73,39 @@ def exportar_excel_inventario(productos):
     )
     response['Content-Disposition'] = 'attachment; filename="informe_inventario.xlsx"'
     return response
+
+
+
+@transaction.atomic
+def generar_ordenes_sugeridas():
+    productos_bajo_stock = Producto.objects.filter(stock_actual__lt=F('stock_minimo'))
+
+    for producto in productos_bajo_stock:
+        proveedor = producto.proveedor
+        cantidad_faltante = producto.stock_minimo - producto.stock_actual
+
+        # Buscar orden sugerida abierta para el proveedor
+        orden = OrdenCompra.objects.filter(
+            proveedor=proveedor,
+            estado='sugerida'
+        ).first()
+
+        if not orden:
+            orden = OrdenCompra.objects.create(
+                proveedor=proveedor,
+                estado='sugerida',
+                observaciones='Orden generada automáticamente por stock bajo.'
+            )
+
+        # Verificar si el producto ya está en la orden
+        item_existente = ItemOrdenCompra.objects.filter(
+            orden=orden,
+            producto=producto
+        ).first()
+
+        if not item_existente:
+            ItemOrdenCompra.objects.create(
+                orden=orden,
+                producto=producto,
+                cantidad=cantidad_faltante
+            )

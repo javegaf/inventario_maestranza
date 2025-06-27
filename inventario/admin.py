@@ -5,7 +5,8 @@ from .models import (
     Producto, MovimientoInventario,
     Proveedor, KitProducto,
     ProductoEnKit, HistorialPrecio, InformeInventario, AlertaStock,
-    AuditoriaInventario, Proyecto, MaterialProyecto, ConfiguracionSistema
+    AuditoriaInventario, Proyecto, MaterialProyecto, ConfiguracionSistema,
+    OrdenCompra, ItemOrdenCompra, LoteProducto
 )
 
 @admin.register(Producto)
@@ -90,3 +91,36 @@ class ConfiguracionSistemaAdmin(admin.ModelAdmin):
     search_fields = ['clave', 'descripcion']
     list_filter = ['clave']
     ordering = ['clave']
+
+class ItemOrdenCompraInline(admin.TabularInline):
+    model = ItemOrdenCompra
+    extra = 0
+    readonly_fields = ('producto', 'cantidad')
+    can_delete = False
+
+@admin.register(OrdenCompra)
+class OrdenCompraAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proveedor', 'estado', 'fecha_creacion', 'observaciones_corta')
+    list_filter = ('estado', 'proveedor')
+    search_fields = ('proveedor__nombre',)
+    inlines = [ItemOrdenCompraInline]
+    readonly_fields = ('fecha_creacion',)
+
+    def observaciones_corta(self, obj):
+        return (obj.observaciones[:50] + '...') if obj.observaciones and len(obj.observaciones) > 50 else obj.observaciones
+    observaciones_corta.short_description = 'Observaciones'
+
+
+@admin.register(LoteProducto)
+class LoteProductoAdmin(admin.ModelAdmin):
+    list_display = (
+        'numero_lote',
+        'producto',
+        'fecha_vencimiento',
+        'cantidad_inicial',
+        'cantidad_actual',
+        'observaciones',
+    )
+    list_filter = ('producto', 'fecha_vencimiento')
+    search_fields = ('numero_lote', 'producto__nombre', 'observaciones')
+    ordering = ('-fecha_vencimiento',)
