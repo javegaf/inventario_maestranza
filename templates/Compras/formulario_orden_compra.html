@@ -7,6 +7,7 @@
     <div class="col">
         <h2>Editar Orden #{{ orden.id }}</h2>
         <p><strong>Proveedor:</strong> {{ orden.proveedor.nombre }}</p>
+        <p><strong>Estado:</strong> <span class="badge bg-{{ orden.estado|yesno:'success,warning' }}">{{ orden.get_estado_display }}</span></p>
     </div>
 </div>
 
@@ -58,7 +59,7 @@
                 </tbody>
             </table>
 
-            <button type="button" class="btn btn-outline-primary mt-3" onclick="agregarFila()">
+            <button type="button" class="btn btn-outline-primary mt-3" id="btn-agregar-producto">
                 <i class="bi bi-plus-circle"></i> Agregar Producto
             </button>
         </div>
@@ -96,12 +97,13 @@
 </div>
 {% endblock content %}
 
-{% block script %}
+{% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("form-editar-orden");
     const tabla = document.querySelector('#tabla-productos tbody');
     const modal = new bootstrap.Modal(document.getElementById("modalConfirmarGuardar"));
+    const btnAgregarProducto = document.getElementById("btn-agregar-producto");
     let confirmarEnvio = false;
 
     // Confirmación antes de enviar
@@ -116,28 +118,32 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Confirmación en modal
     document.getElementById("btn-confirmar-guardar").addEventListener("click", function () {
+        // Asegurar que todos los precios tengan valor
         document.querySelectorAll('input[name="precios[]"]').forEach(function (input) {
-            if (!input.value) input.value = "0.00";
+            if (!input.value || input.value === '') {
+                input.value = "0.00";
+            }
         });
         confirmarEnvio = true;
         form.submit();
     });
 
-    // Delegación: eliminar fila
-    document.addEventListener("click", function (e) {
-        const btn = e.target.closest(".btn-eliminar");
-        if (btn) {
-            const fila = btn.closest("tr");
+    // Eliminar fila de producto
+    tabla.addEventListener("click", function (e) {
+        const btnEliminar = e.target.closest(".btn-eliminar");
+        if (btnEliminar) {
+            e.preventDefault();
+            const fila = btnEliminar.closest("tr");
             if (tabla.rows.length > 1) {
                 fila.remove();
             } else {
-                alert("Debe haber al menos un producto.");
+                alert("Debe haber al menos un producto en la orden.");
             }
         }
     });
 
-    // Función global para agregar filas (necesaria para onclick en HTML)
-    window.agregarFila = function () {
+    // Agregar nueva fila de producto
+    btnAgregarProducto.addEventListener("click", function() {
         const seleccionados = Array.from(document.querySelectorAll('select[name="productos[]"]'))
             .map(select => select.value)
             .filter(v => v !== '');
@@ -149,7 +155,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         fetch(`${url}?${params.toString()}`)
             .then(response => {
-                if (!response.ok) throw new Error("Error en la solicitud AJAX");
+                if (!response.ok) {
+                    throw new Error("Error en la solicitud AJAX");
+                }
                 return response.json();
             })
             .then(data => {
@@ -181,9 +189,9 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .catch(error => {
                 console.error("Error al agregar fila:", error);
-                alert("No se pudo agregar el producto. Revisa la consola.");
+                alert("No se pudo agregar el producto. Revisa la consola para más detalles.");
             });
-    };
+    });
 });
 </script>
 {% endblock %}
@@ -198,6 +206,10 @@ document.addEventListener("DOMContentLoaded", function () {
 }
 .table td, .table th {
     vertical-align: middle;
+}
+.btn-eliminar:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
 }
 </style>
 {% endblock %}
