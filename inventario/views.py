@@ -18,7 +18,7 @@ from io import BytesIO
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.mail import send_mail
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db import models
@@ -43,7 +43,7 @@ from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto, ProductoEnKit,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
-    Proyecto, MaterialProyecto, AuditoriaInformeInventario
+    Proyecto, MaterialProyecto, AuditoriaInformeInventario, OrdenCompra, ItemOrdenCompra, OrdenCompraLog
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
@@ -51,11 +51,12 @@ from .forms import (
     CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
     HistorialPrecioFiltroForm, RegistroPrecioManualForm, ProyectoForm,
     MaterialProyectoForm, ActualizarUsoMaterialForm,
-    ConfiguracionSistemaForm, InformeInventarioFiltroForm
+    ConfiguracionSistemaForm, InformeInventarioFiltroForm, OrdenCompraFiltroForm
 )
 
 logger = logging.getLogger(__name__)
-
+def is_staff(user):
+    return user.is_staff
 # Productos
 def lista_productos(request):
     """Muestra la lista de productos registrados en el sistema."""
@@ -405,7 +406,7 @@ def alertas_stock(request):
             alerta = AlertaStock.objects.get(id=alerta_id)
             alerta.atendido = True
             alerta.save()
-            return redirect('alertas_stock')
+            return redirect('inventario:alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
 
@@ -1664,3 +1665,251 @@ def informe_inventario(request):
         'valores': valores,
     }
     return render(request, 'reportes/informe_inventario.html', contexto)
+
+def lista_ordenes_compra(request):
+    """Vista para listar órdenes de compra con filtros."""
+    form = OrdenCompraFiltroForm(request.GET or None)
+    ordenes_qs = OrdenCompra.objects.all().order_by('-fecha_creacion')
+    ordenes = ordenes_qs  # por defecto
+
+    if form.is_valid():
+        if form.cleaned_data.get('fecha_inicio'):
+            fecha_inicio = form.cleaned_data['fecha_inicio']
+            ordenes_qs = ordenes_qs.filter(
+                fecha_creacion__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
+        if form.cleaned_data.get('fecha_fin'):
+            fecha_fin = form.cleaned_data['fecha_fin']
+            ordenes_qs = ordenes_qs.filter(
+                fecha_creacion__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
+        if form.cleaned_data.get('estado'):
+            ordenes_qs = ordenes_qs.filter(estado=form.cleaned_data['estado'])
+        if form.cleaned_data.get('proveedor'):
+            ordenes_qs = ordenes_qs.filter(proveedor=form.cleaned_data['proveedor'])
+
+    # Paginación
+    paginator = Paginator(ordenes_qs, 10)
+    page_number = request.GET.get('page')
+    try:
+        ordenes = paginator.page(page_number)
+    except PageNotAnInteger:
+        ordenes = paginator.page(1)
+    except EmptyPage:
+        ordenes = paginator.page(paginator.num_pages)
+
+    # Excluir 'page' del querystring para mantener filtros
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    querystring = query_params.urlencode()
+
+    return render(request, 'compras/lista_ordenes_compra.html', {
+        'ordenes': ordenes,
+        'filtro_form': form,
+        'querystring': querystring
+    })
+
+def detalle_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    return render(request, 'compras/detalle_orden_compra.html', {'orden': orden})
+
+@login_required
+@user_passes_test(is_staff)
+def aprobar_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    if orden.estado == 'sugerida':
+        orden.estado = 'aprobada'
+        orden.fecha_aprobacion = timezone.now()
+        orden.usuario_aprobacion = request.user
+        orden.save()
+        messages.success(request, "Orden aprobada exitosamente.")
+    else:
+        messages.warning(request, "Solo se pueden aprobar órdenes en estado 'sugerida'.")
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+@login_required
+@user_passes_test(is_staff)
+def cancelar_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    if orden.estado in ['sugerida', 'pendiente', 'aprobada']:
+        orden.estado = 'cancelada'
+        orden.fecha_cancelacion = timezone.now()
+        orden.save()
+        messages.warning(request, "Orden cancelada.")
+    else:
+        messages.warning(request, "Solo se pueden cancelar órdenes que no estén recepcionadas o ya canceladas.")
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+@login_required
+@user_passes_test(is_staff)
+def recibir_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+
+    if orden.estado != 'aprobada':
+        messages.warning(request, "Solo se pueden recibir órdenes en estado 'aprobada'.")
+        return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+    orden.estado = 'recepcionada'
+    orden.fecha_recepcion = timezone.now()
+    orden.save()
+
+    lotes_creados = []
+
+    for item in orden.items.all():
+        producto = item.producto
+        lote = LoteProducto.objects.create(
+            producto=producto,
+            cantidad_inicial=item.cantidad,
+            cantidad_actual=item.cantidad,
+            numero_lote=f"OC{orden.id}-P{producto.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+            fecha_vencimiento=timezone.now().date() + datetime.timedelta(days=30),  # Por defecto, vence en 30 días
+        )
+        producto.stock_actual += item.cantidad
+        producto.save()
+        
+        # Marcar alertas como atendidas si ya se resolvió el bajo stock
+        from .models import AlertaStock
+        if producto.stock_actual >= producto.stock_minimo:
+            AlertaStock.objects.filter(producto=producto, atendido=False).update(atendido=True)
+            
+        lotes_creados.append(lote.id)
+
+    if lotes_creados:
+      
+        messages.success(request, f"Orden recepcionada. Lotes generados satisfactoriamente")
+    else:
+        messages.success(request, "Orden recepcionada y lotes generados.")
+
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+
+@login_required
+@user_passes_test(is_staff)
+def editar_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    productos_disponibles = Producto.objects.filter(proveedor=orden.proveedor)
+
+    if request.method == 'POST':
+        productos_ids = request.POST.getlist('productos[]')
+        cantidades = request.POST.getlist('cantidades[]')
+        precios = request.POST.getlist('precios[]')
+        productos_validos = []
+        productos_agregados = set()
+
+        for i in range(len(productos_ids)):
+            try:
+                producto_id = int(productos_ids[i])
+                cantidad = int(cantidades[i]) if cantidades[i] else 0
+                precio_unitario = float(precios[i]) if precios[i] else 0.0
+
+                if cantidad <= 0:
+                    continue
+
+                if producto_id in productos_agregados:
+                    continue  # evitar productos duplicados
+
+                producto = Producto.objects.get(id=producto_id, proveedor=orden.proveedor)
+                productos_validos.append((producto, cantidad, precio_unitario))
+                productos_agregados.add(producto_id)
+
+            except (ValueError, Producto.DoesNotExist, IndexError):
+                continue  # ignora cualquier fila mal formada
+
+        if not productos_validos:
+            messages.error(request, "Debe agregar al menos un producto válido con cantidad mayor a 0.")
+            return redirect('inventario:editar_orden_compra', orden_id=orden.id)
+
+        # Borrar y volver a cargar los ítems
+        orden.items.all().delete()
+
+        for producto, cantidad, precio_unitario in productos_validos:
+            ItemOrdenCompra.objects.create(
+                orden=orden,
+                producto=producto,
+                cantidad=cantidad,
+                precio_unitario=precio_unitario
+            )
+
+        messages.success(request, "Orden de compra actualizada correctamente.")
+        return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+    return render(request, 'Compras/formulario_orden_compra.html', {
+        'orden': orden,
+        'productos_disponibles': productos_disponibles
+    })
+
+@login_required
+def obtener_productos_disponibles(request, proveedor_id):
+    print("LLAMADA AJAX RECIBIDA")
+    seleccionados = request.GET.getlist('seleccionados[]')
+    productos = Producto.objects.filter(proveedor_id=proveedor_id).exclude(id__in=seleccionados)
+    data = [{'id': p.id, 'nombre': p.nombre} for p in productos]
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def crear_orden_compra(request):
+    proveedores = Proveedor.objects.all()
+
+    if request.method == 'POST':
+        proveedor_id = request.POST.get('proveedor')
+        productos_ids = request.POST.getlist('productos[]')
+        cantidades = request.POST.getlist('cantidades[]')
+        precios = request.POST.getlist('precios[]')
+
+        if not proveedor_id:
+            messages.error(request, "Debe seleccionar un proveedor.")
+            return redirect('inventario:crear_orden_compra')
+
+        try:
+            proveedor = Proveedor.objects.get(id=proveedor_id)
+        except Proveedor.DoesNotExist:
+            messages.error(request, "Proveedor inválido.")
+            return redirect('inventario:crear_orden_compra')
+
+        productos_validos = []
+
+        for i in range(len(productos_ids)):
+            if not productos_ids[i] or not cantidades[i] or not precios[i]:
+                continue
+
+            try:
+                producto_id = int(productos_ids[i])
+                cantidad = int(cantidades[i])
+                precio_unitario = float(precios[i])
+
+                if cantidad <= 0:
+                    continue
+
+                producto = Producto.objects.get(id=producto_id, proveedor=proveedor)
+                productos_validos.append((producto, cantidad, precio_unitario))
+
+            except (ValueError, Producto.DoesNotExist):
+                continue
+
+        if not productos_validos:
+            messages.error(request, "Debe agregar al menos un producto con cantidad válida.")
+            return redirect('inventario:crear_orden_compra')
+
+        # Crear la orden de compra
+        orden = OrdenCompra.objects.create(proveedor=proveedor)
+
+        for producto, cantidad, precio_unitario in productos_validos:
+            ItemOrdenCompra.objects.create(
+                orden=orden,
+                producto=producto,
+                cantidad=cantidad,
+                precio_unitario=precio_unitario
+            )
+
+        messages.success(request, f"Orden #{orden.id} creada exitosamente.")
+        return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+    return render(request, 'Compras/crear_orden_compra.html', {
+        'orden': None,
+        'proveedores': proveedores,
+    })
+@login_required
+def productos_por_proveedor(request):
+    proveedor_id = request.GET.get('proveedor_id')
+    productos = Producto.objects.filter(proveedor_id=proveedor_id).values('id', 'nombre')
+    return JsonResponse(list(productos), safe=False)

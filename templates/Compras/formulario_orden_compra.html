@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Editar Orden de Compra{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Editar Orden #{{ orden.id }}</h2>
+        <p><strong>Proveedor:</strong> {{ orden.proveedor.nombre }}</p>
+    </div>
+</div>
+
+<form id="form-editar-orden" method="post">
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Productos</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered align-middle" id="tabla-productos">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in orden.items.all %}
+                    <tr>
+                        <td>
+                            <select name="productos[]" class="form-select" required>
+                                <option value="">-- Seleccione un producto --</option>
+                                {% for producto in productos_disponibles %}
+                                    <option value="{{ producto.id }}" {% if producto.id == item.producto.id %}selected{% endif %}>
+                                        {{ producto.nombre }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="cantidades[]" class="form-control" value="{{ item.cantidad }}" min="1" required>
+                        </td>
+                        <td>
+                            <input type="number" name="precios[]" class="form-control"
+                                   value="{{ item.precio_unitario|floatformat:2|default_if_none:'0.00' }}"
+                                   min="0" step="0.01">
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-danger btn-sm btn-eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <button type="button" class="btn btn-outline-primary mt-3" onclick="agregarFila()">
+                <i class="bi bi-plus-circle"></i> Agregar Producto
+            </button>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-circle"></i> Guardar Cambios
+        </button>
+        <a href="{% url 'inventario:ordenes_compra' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al listado
+        </a>
+    </div>
+</form>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="modalConfirmarGuardar" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-success">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="modalLabel">Confirmar guardado</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        ¿Estás seguro de que deseas guardar los cambios en la orden de compra?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btn-confirmar-guardar">
+            Sí, guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block script %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("form-editar-orden");
+    const tabla = document.querySelector('#tabla-productos tbody');
+    const modal = new bootstrap.Modal(document.getElementById("modalConfirmarGuardar"));
+    let confirmarEnvio = false;
+
+    // Confirmación antes de enviar
+    form.addEventListener("submit", function (event) {
+        if (!confirmarEnvio) {
+            event.preventDefault();
+            modal.show();
+        } else {
+            confirmarEnvio = false;
+        }
+    });
+
+    // Confirmación en modal
+    document.getElementById("btn-confirmar-guardar").addEventListener("click", function () {
+        document.querySelectorAll('input[name="precios[]"]').forEach(function (input) {
+            if (!input.value) input.value = "0.00";
+        });
+        confirmarEnvio = true;
+        form.submit();
+    });
+
+    // Delegación: eliminar fila
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest(".btn-eliminar");
+        if (btn) {
+            const fila = btn.closest("tr");
+            if (tabla.rows.length > 1) {
+                fila.remove();
+            } else {
+                alert("Debe haber al menos un producto.");
+            }
+        }
+    });
+
+    // Función global para agregar filas (necesaria para onclick en HTML)
+    window.agregarFila = function () {
+        const seleccionados = Array.from(document.querySelectorAll('select[name="productos[]"]'))
+            .map(select => select.value)
+            .filter(v => v !== '');
+
+        const params = new URLSearchParams();
+        seleccionados.forEach(id => params.append('seleccionados[]', id));
+
+        const url = "{% url 'inventario:ajax_productos_disponibles' orden.proveedor.id %}";
+
+        fetch(`${url}?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) throw new Error("Error en la solicitud AJAX");
+                return response.json();
+            })
+            .then(data => {
+                if (data.length === 0) {
+                    alert("No hay más productos disponibles para agregar.");
+                    return;
+                }
+
+                const nuevaFila = document.createElement('tr');
+
+                let selectHTML = '<select name="productos[]" class="form-select" required><option value="">-- Seleccione un producto --</option>';
+                data.forEach(producto => {
+                    selectHTML += `<option value="${producto.id}">${producto.nombre}</option>`;
+                });
+                selectHTML += '</select>';
+
+                nuevaFila.innerHTML = `
+                    <td>${selectHTML}</td>
+                    <td><input type="number" name="cantidades[]" class="form-control" value="1" min="1" required></td>
+                    <td><input type="number" name="precios[]" class="form-control" value="0.00" min="0" step="0.01"></td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-danger btn-sm btn-eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+
+                tabla.appendChild(nuevaFila);
+            })
+            .catch(error => {
+                console.error("Error al agregar fila:", error);
+                alert("No se pudo agregar el producto. Revisa la consola.");
+            });
+    };
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.modal-content {
+    border-radius: 1rem;
+}
+.modal-footer .btn + .btn {
+    margin-left: 0.5rem;
+}
+.table td, .table th {
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     Producto, MovimientoInventario, Proveedor, KitProducto,
     CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialPrecio,
-    Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema
+    Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema, OrdenCompraLog, ItemOrdenCompra, OrdenCompra
 )
 
 User = get_user_model()
@@ -582,3 +582,25 @@ class InformeInventarioFiltroForm(forms.Form):
         if valor is not None and valor < 0:
             raise forms.ValidationError("El stock máximo no puede ser negativo.")
         return None if valor == 0 else valor
+
+
+
+class OrdenCompraFiltroForm(forms.Form):
+    fecha_inicio = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    fecha_fin = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    estado = forms.ChoiceField(
+        required=False,
+        choices=[('', 'Todos')] + list(OrdenCompra.ESTADOS),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    proveedor = forms.ModelChoiceField(
+        required=False,
+        queryset=Proveedor.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
