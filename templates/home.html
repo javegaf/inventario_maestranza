@@ -62,7 +62,7 @@
       <div class="card-body text-center">
         <i class="bi bi-bar-chart-line-fill display-4 icon-reportes"></i>
         <h5 class="card-title mt-2">Reportes</h5>
-        <a href="{% url 'inventario:reportes' %}" class="btn btn-reportes w-100 mt-2">Ver Reportes</a>
+        <a href="{% url 'inventario:reportes' %}" class="btn btn-outline-primary btn-reportes w-100 mt-2">Ver Reportes</a>
       </div>
     </div>
   </div>
@@ -72,7 +72,27 @@
       <div class="card-body text-center">
         <i class="bi bi-clock-history display-4 icon-precios"></i>
         <h5 class="card-title mt-2">Historial de Precios</h5>
-        <a href="{% url 'inventario:historial_precios' %}" class="btn btn-historial w-100 mt-2">Ver Historial</a>
+        <a href="{% url 'inventario:historial_precios' %}" class="btn btn-outline-warning btn-historial w-100 mt-2">Ver Historial</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-tools display-4 icon-proyectos"></i>
+        <h5 class="card-title mt-2">Proyectos</h5>
+        <a href="{% url 'inventario:listar_proyectos' %}" class="btn btn-outline-secondary btn-proyectos w-100 mt-2">Ver Proyectos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
+        <i class="bi bi-gear-fill display-4 icon-configuracion"></i>
+        <h5 class="card-title mt-2">Configuración</h5>
+        <a href="{% url 'inventario:configuracion_sistema' %}" class="btn btn-outline-secondary btn-configuracion w-100 mt-2">Ajustes del Sistema</a>
       </div>
     </div>
   </div>

@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Crear Kit de Productos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Crear Kit</h2>
+  <form method="post">
+    {% csrf_token %}
+    
+    <div class="mb-3">
+      <label for="nombre" class="form-label">Nombre del Kit</label>
+      <input type="text" name="nombre" id="nombre" class="form-control" required>
+      <div class="text-danger small" id="error-nombre" style="display: none;"></div>
+    </div>
+
+    <div class="row g-3 align-items-end mb-3">
+      <div class="col-md-6">
+        <label for="producto" class="form-label">Producto</label>
+        <select id="producto" class="form-select">
+          <option value="">Selecciona un producto</option>
+          {% for producto in productos %}
+            <option value="{{ producto.id }}" data-nombre="{{ producto.nombre }}">{{ producto.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="cantidad" class="form-label">Cantidad</label>
+        <input type="number" id="cantidad" class="form-control" min="1">
+      </div>
+      <div class="col-md-3">
+        <button type="button" id="agregar" class="btn btn-primary w-100">Agregar</button>
+      </div>
+    </div>
+    <div class="text-danger small mb-3" id="error-cantidad" style="display: none;"></div>
+
+    <table class="table table-bordered" id="tabla-productos">
+      <thead class="table-light">
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <input type="hidden" name="productos_json" id="productos_json">
+
+    <div class="mt-3 d-flex justify-content-end gap-2">
+      <button type="submit" class="btn btn-success">Guardar Kit</button>
+      <a href="{% url 'inventario:lista_kits' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const productos = [];
+  const tabla = document.querySelector("#tabla-productos tbody");
+  const inputHidden = document.getElementById("productos_json");
+
+  const errorNombre = document.getElementById('error-nombre');
+  const errorCantidad = document.getElementById('error-cantidad');
+
+  document.getElementById('agregar').addEventListener('click', () => {
+    const select = document.getElementById('producto');
+    const cantidadInput = document.getElementById('cantidad');
+    const cantidad = parseInt(cantidadInput.value);
+    const productoId = select.value;
+    const productoNombre = select.options[select.selectedIndex]?.dataset?.nombre;
+
+    // Limpiar errores anteriores
+    errorCantidad.style.display = 'none';
+    errorCantidad.textContent = '';
+    errorNombre.style.display = 'none';
+
+    // Validaciones
+    if (!productoId) {
+      errorCantidad.textContent = "Selecciona un producto.";
+      errorCantidad.style.display = 'block';
+      return;
+    }
+
+    if (isNaN(cantidad) || cantidad < 1) {
+      errorCantidad.textContent = "La cantidad debe ser mayor a cero.";
+      errorCantidad.style.display = 'block';
+      return;
+    }
+
+    const yaExiste = productos.find(p => p.id === productoId);
+    if (yaExiste) {
+      errorCantidad.textContent = "Este producto ya fue agregado al kit.";
+      errorCantidad.style.display = 'block';
+      return;
+    }
+
+    productos.push({ id: productoId, nombre: productoNombre, cantidad });
+
+    const fila = document.createElement('tr');
+    fila.innerHTML = `
+      <td>${productoNombre}</td>
+      <td>${cantidad}</td>
+      <td><button type="button" class="btn btn-danger btn-sm eliminar">Eliminar</button></td>
+    `;
+    fila.querySelector('.eliminar').addEventListener('click', () => {
+      fila.remove();
+      const index = productos.findIndex(p => p.id === productoId);
+      if (index !== -1) productos.splice(index, 1);
+      inputHidden.value = JSON.stringify(productos);
+    });
+
+    tabla.appendChild(fila);
+    inputHidden.value = JSON.stringify(productos);
+
+    // Reset campos
+    select.value = '';
+    cantidadInput.value = '';
+  });
+
+  // Validación al enviar el formulario
+  document.querySelector("form").addEventListener("submit", (e) => {
+    const nombreKit = document.getElementById('nombre').value.trim();
+    if (!nombreKit) {
+      e.preventDefault();
+      errorNombre.textContent = "El nombre del kit es obligatorio.";
+      errorNombre.style.display = 'block';
+      return;
+    }
+
+    if (productos.length === 0) {
+      e.preventDefault();
+      errorCantidad.textContent = "Debes agregar al menos un producto al kit.";
+      errorCantidad.style.display = 'block';
+    }
+  });
+</script>
+{% endblock %}

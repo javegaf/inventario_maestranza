@@ -1,13 +1,270 @@
-{# /templates/precios/historial_precios.html #}
 {% extends 'base.html' %}
+{% load static %}
+{% load inventario_extras %}
 {% block title %}Historial de Precios{% endblock %}
 {% block content %}
-<h2>Historial de precios por producto</h2>
-<ul class="list-group">
-    {% for precio in historial %}
-    <li class="list-group-item">
-        {{ precio.producto }} - ${{ precio.precio_unitario }} ({{ precio.fecha|date:"d/m/Y" }})
-    </li>
-    {% endfor %}
-</ul>
+
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-graph-up"></i> Historial de Precios</h2>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Total Registros</h5>
+                        <h3>{{ stats.total_registros }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-file-earmark-text fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Productos</h5>
+                        <h3>{{ stats.productos_unicos }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-box fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Proveedores</h5>
+                        <h3>{{ stats.proveedores_unicos }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Precio Promedio</h5>
+                        <h3>{{ stats.precio_promedio|clp }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-dollar fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mb-4">
+    <div class="col">
+        <a href="/inventario/precios/registrar/" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Registrar Precio Manual
+        </a>
+        <a href="/inventario/precios/comparar/" class="btn btn-info">
+            <i class="bi bi-bar-chart"></i> Comparar Proveedores
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="{{ filtro_form.producto.id_for_label }}" class="form-label">Producto:</label>
+                {{ filtro_form.producto }}
+            </div>
+            <div class="col-md-3">
+                <label for="{{ filtro_form.proveedor.id_for_label }}" class="form-label">Proveedor:</label>
+                {{ filtro_form.proveedor }}
+            </div>
+            <div class="col-md-2">
+                <label for="{{ filtro_form.fecha_desde.id_for_label }}" class="form-label">Fecha desde:</label>
+                {{ filtro_form.fecha_desde }}
+            </div>
+            <div class="col-md-2">
+                <label for="{{ filtro_form.fecha_hasta.id_for_label }}" class="form-label">Fecha hasta:</label>
+                {{ filtro_form.fecha_hasta }}
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="d-grid gap-2 w-100">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="/inventario/precios/" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Historial de Precios</h5>
+        <span class="badge bg-primary">{{ page_obj.paginator.count }} registros</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Proveedor</th>
+                        <th>Fecha</th>
+                        <th>Variación</th>
+                        <th>Usuario</th>
+                        <th>Origen</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio in page_obj %}
+                    <tr>
+                        <td>
+                            <strong>{{ precio.producto.nombre }}</strong>
+                            <br><small class="text-muted">{{ precio.producto.categoria }}</small>
+                        </td>
+                        <td>
+                            <span class="h5 text-success">{{ precio.precio_unitario|clp }}</span>
+                        </td>
+                        <td>
+                            {% if precio.proveedor %}
+                                <span class="badge bg-info">{{ precio.proveedor.nombre }}</span>
+                            {% else %}
+                                <span class="text-muted">Sin proveedor</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ precio.fecha|date:"d/m/Y" }}
+                            <br><small class="text-muted">{{ precio.fecha|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if precio.variacion_precio %}
+                                {% if precio.variacion_precio > 0 %}
+                                    <span class="text-danger">
+                                        <i class="bi bi-arrow-up"></i> +{{ precio.variacion_precio|clp }}
+                                        {% if precio.porcentaje_variacion %}
+                                            <br><small>(+{{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
+                                        {% endif %}
+                                    </span>
+                                {% elif precio.variacion_precio < 0 %}
+                                    <span class="text-success">
+                                        <i class="bi bi-arrow-down"></i> {{ precio.variacion_precio|clp }}
+                                        {% if precio.porcentaje_variacion %}
+                                            <br><small>({{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-dash"></i> Sin cambio
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Primer registro</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.usuario %}
+                                <strong>{{ precio.usuario.username }}</strong>
+                            {% else %}
+                                <span class="text-muted">Sistema</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.compra %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-cart"></i> Compra
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info">
+                                    <i class="bi bi-pencil"></i> Manual
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="/inventario/precios/producto/{{ precio.producto.id }}/" 
+                                   class="btn btn-outline-primary" title="Ver historial del producto">
+                                    <i class="bi bi-graph-up"></i>
+                                </a>
+                                {% if precio.proveedor %}
+                                <a href="/inventario/precios/proveedor/{{ precio.proveedor.id }}/" 
+                                   class="btn btn-outline-info" title="Ver historial del proveedor">
+                                    <i class="bi bi-building"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No se encontraron registros de precios.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Navegación de páginas" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+            </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
 {% endblock %}

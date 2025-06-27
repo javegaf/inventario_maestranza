@@ -21,8 +21,8 @@
                         <th>Nombre</th>
                         <th>Correo</th>
                         <th>Teléfono</th>
-                        <th>Total Compras</th>
                         <th>Calificación</th>
+                        <th>Productos</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -32,7 +32,6 @@
                         <td>{{ proveedor.nombre }}</td>
                         <td>{{ proveedor.correo }}</td>
                         <td>{{ proveedor.telefono }}</td>
-                        <td>{{ proveedor.total_compras }}</td>
                         <td>
                             {% with calificacion=proveedor.get_calificacion_promedio %}
                                 {% if calificacion > 0 %}
@@ -52,17 +51,27 @@
                             {% endwith %}
                         </td>
                         <td>
+                            {% if proveedor.productos_suministrados %}
+                                {{ proveedor.productos_suministrados }}
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             <a href="{% url 'inventario:detalle_proveedor' proveedor.id %}" class="btn btn-sm btn-info">
                                 <i class="bi bi-eye"></i> Ver
                             </a>
                             <a href="{% url 'inventario:editar_proveedor' proveedor.id %}" class="btn btn-sm btn-warning">
                                 <i class="bi bi-pencil"></i> Editar
                             </a>
+                            <a href="{% url 'inventario:historial_precios_proveedor' proveedor.id %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-graph-up"></i> Precios
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <div class="alert alert-info mb-0">
                                 <i class="bi bi-info-circle"></i> No hay proveedores registrados.
                             </div>

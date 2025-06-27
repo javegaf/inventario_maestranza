@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Informe de Inventario{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bar-chart-line"></i> Informe de Inventario</h2>
+    <div>
+      <a href="#" class="btn btn-outline-danger me-2 btn-exportar" data-export="pdf">
+        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+      </a>
+      <a href="#" class="btn btn-outline-success btn-exportar" data-export="excel">
+        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <form method="get" class="row g-3 align-items-end mb-4">
+    <div class="col-md-3">
+        {{ form.ubicacion.label_tag }}
+        {{ form.ubicacion }}
+    </div>
+    <div class="col-md-3">
+        {{ form.categoria.label_tag }}
+        {{ form.categoria }}
+    </div>
+    <div class="col-md-3">
+        {{ form.proveedor.label_tag }}
+        {{ form.proveedor }}
+    </div>
+    <div class="col-md-3">
+        {{ form.stock_min.label_tag }}
+        {{ form.stock_min }}
+    </div>
+    <div class="col-md-3">
+        {{ form.stock_max.label_tag }}
+        {{ form.stock_max }}
+    </div>
+    <div class="col-md-3">
+        <button type="submit" id="btn-filtrar" class="btn btn-primary">
+          <i class="bi bi-funnel-fill"></i> Filtrar
+        </button>
+    </div>
+  </form>
+
+  <!-- GRÁFICO -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Distribución de productos por categoría</h5>
+      <canvas id="graficoCategorias"></canvas>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>Nombre</th>
+          <th>Ubicación</th>
+          <th>Categoría</th>
+          <th>Stock Actual</th>
+          <th>Stock Mínimo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for producto in productos_filtrados %}
+        <tr>
+          <td>{{ producto.nombre }}</td>
+          <td>{{ producto.ubicacion }}</td>
+          <td>{{ producto.categoria }}</td>
+          <td>{{ producto.stock_actual }}</td>
+          <td>{{ producto.stock_minimo }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted">No se encontraron productos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('graficoCategorias');
+const data = {
+  labels: {{ labels|safe }},
+  datasets: [{
+    label: 'Cantidad de Productos',
+    data: {{ valores|safe }},
+    backgroundColor: [
+      'rgba(54, 162, 235, 0.7)',
+      'rgba(255, 99, 132, 0.7)',
+      'rgba(255, 206, 86, 0.7)',
+      'rgba(75, 192, 192, 0.7)',
+      'rgba(153, 102, 255, 0.7)'
+    ],
+    borderColor: 'rgba(0,0,0,0.2)',
+    borderWidth: 1
+  }]
+};
+
+new Chart(ctx, {
+  type: 'bar',
+  data: data,
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: { display: true, text: 'Productos por Categoría' }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: { display: true, text: 'Cantidad' }
+      },
+      x: {
+        title: { display: true, text: 'Categorías' }
+      }
+    }
+  }
+});
+
+// Exportar con filtros
+document.querySelectorAll('.btn-exportar').forEach(btn => {
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    const tipo = this.dataset.export;
+    const params = new URLSearchParams(window.location.search);
+
+    params.delete('export');
+    params.set('export', tipo);
+
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
+  });
+});
+</script>
+{% endblock %}

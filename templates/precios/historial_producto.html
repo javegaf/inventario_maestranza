@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load inventario_extras %}
+{% block title %}Historial de Precios - {{ producto.nombre }}{% endblock %}
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/inventario/precios/">Historial de Precios</a></li>
+                <li class="breadcrumb-item active">{{ producto.nombre }}</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-graph-up"></i> Historial de Precios: {{ producto.nombre }}</h2>
+        <p class="text-muted">{{ producto.descripcion }}</p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h6>Precio Actual</h6>
+                <h4>{{ stats.precio_actual|clp }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h6>Precio Mínimo</h6>
+                <h4>{{ stats.precio_minimo|clp }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h6>Precio Máximo</h6>
+                <h4>{{ stats.precio_maximo|clp }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h6>Precio Promedio</h6>
+                <h4>{{ stats.precio_promedio|clp }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h6>Total Cambios</h6>
+                <h4>{{ stats.total_cambios }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card {% if stats.tendencia == 'subida' %}bg-danger{% elif stats.tendencia == 'bajada' %}bg-success{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body text-center">
+                <h6>Tendencia</h6>
+                <h4>
+                    {% if stats.tendencia == 'subida' %}
+                        <i class="bi bi-arrow-up"></i>
+                    {% elif stats.tendencia == 'bajada' %}
+                        <i class="bi bi-arrow-down"></i>
+                    {% else %}
+                        <i class="bi bi-dash"></i>
+                    {% endif %}
+                </h4>
+                <small>{{ stats.porcentaje_variacion|floatformat:1 }}%</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price Evolution Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Evolución de Precios</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="priceChart" width="400" height="100"></canvas>
+    </div>
+</div>
+
+<!-- Price History Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Historial Detallado</h5>
+        <div>
+            <a href="/inventario/precios/comparar/?producto={{ producto.id }}" class="btn btn-info btn-sm">
+                <i class="bi bi-bar-chart"></i> Comparar Proveedores
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Precio</th>
+                        <th>Proveedor</th>
+                        <th>Variación</th>
+                        <th>Usuario</th>
+                        <th>Origen</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio in historial %}
+                    <tr>
+                        <td>{{ precio.fecha|date:"d/m/Y H:i" }}</td>
+                        <td><span class="h5 text-success">{{ precio.precio_unitario|clp }}</span></td>
+                        <td>
+                            {% if precio.proveedor %}
+                                <span class="badge" style="background-color: {{ precio.proveedor.nombre }}; color: white;">
+                                    {{ precio.proveedor.nombre }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">Sin proveedor</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.variacion_precio %}
+                                {% if precio.variacion_precio > 0 %}
+                                    <span class="text-danger">
+                                        <i class="bi bi-arrow-up"></i> +{{ precio.variacion_precio|clp }}
+                                        {% if precio.porcentaje_variacion %}
+                                            <br><small>(+{{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
+                                        {% endif %}
+                                    </span>
+                                {% elif precio.variacion_precio < 0 %}
+                                    <span class="text-success">
+                                        <i class="bi bi-arrow-down"></i> {{ precio.variacion_precio|clp }}
+                                        {% if precio.porcentaje_variacion %}
+                                            <br><small>({{ precio.porcentaje_variacion|floatformat:1 }}%)</small>
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-dash"></i> Sin cambio
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-info">Primer registro</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.usuario %}
+                                <strong>{{ precio.usuario.username }}</strong>
+                            {% else %}
+                                <span class="text-muted">Sistema</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.compra %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-cart"></i> Compra #{{ precio.compra.id }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info">
+                                    <i class="bi bi-pencil"></i> Manual
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.observaciones %}
+                                <span title="{{ precio.observaciones }}">
+                                    {{ precio.observaciones|truncatechars:50 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No hay historial de precios para este producto.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    const fechas = {{ fechas_data|safe }};
+    const precios = {{ precios_data|safe }};
+    const proveedores = {{ proveedores_data|safe }};
+    const colores = {{ colores_data|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fechas.reverse(),
+            datasets: [{
+                label: 'Precio CLP',
+                data: precios.reverse(),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true,
+                pointBackgroundColor: colores.reverse(),
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolución de Precios - {{ producto.nombre }}'
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            return 'Proveedor: ' + proveedores.reverse()[context.dataIndex];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString('es-CL');
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}
