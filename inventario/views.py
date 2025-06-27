@@ -1798,12 +1798,12 @@ def recibir_orden_compra(request, orden_id):
         OrdenCompraLog.objects.create(
             orden=orden,
             estado='recepcionada',
-            descripcion=f"Orden recepcionada por {request.user.username}. {len(lotes_creados)} lotes generados.",
+            descripcion=f"Orden recepcionada por {request.user.username}. {len(lotes_creados)} lotes generados. Alertas de stock atendidas.",
             usuario=request.user
         )
 
         if lotes_creados:
-            messages.success(request, f"Orden recepcionada. {len(lotes_creados)} lotes generados satisfactoriamente.")
+            messages.success(request, f"Orden recepcionada. {len(lotes_creados)} lotes generados satisfactoriamente. Alertas de stock atendidas.")
         else:
             messages.success(request, "Orden recepcionada.")
 
