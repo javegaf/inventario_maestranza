@@ -1,16 +1,15 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
-{% block title %}Editar Kit de Productos{% endblock %}
+{% block title %}Crear Kit de Productos{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-  <h2>Editar Kit</h2>
+  <h2>Crear Kit</h2>
   <form method="post">
     {% csrf_token %}
-
+    
     <div class="mb-3">
       <label for="nombre" class="form-label">Nombre del Kit</label>
-      <input type="text" name="nombre" id="nombre" class="form-control" value="{{ kit.nombre }}" required>
+      <input type="text" name="nombre" id="nombre" class="form-control" required>
       <div class="text-danger small" id="error-nombre" style="display: none;"></div>
     </div>
 
@@ -42,69 +41,27 @@
           <th>Acciones</th>
         </tr>
       </thead>
-      <tbody>
-        {% for item in productos_en_kit %}
-        <tr>
-          <td>{{ item.producto.nombre }}</td>
-          <td>{{ item.cantidad }}</td>
-          <td><button type="button" class="btn btn-danger btn-sm eliminar" data-id="{{ item.producto.id }}">Eliminar</button></td>
-        </tr>
-        {% endfor %}
-      </tbody>
+      <tbody></tbody>
     </table>
 
     <input type="hidden" name="productos_json" id="productos_json">
 
     <div class="mt-3 d-flex justify-content-end gap-2">
-      <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmarModal">
-        Guardar Cambios
-      </button>
+      <button type="submit" class="btn btn-success">Guardar Kit</button>
       <a href="{% url 'inventario:lista_kits' %}" class="btn btn-secondary">Cancelar</a>
     </div>
-    <!-- Modal -->
-<div class="modal fade" id="confirmarModal" tabindex="-1" aria-labelledby="confirmarModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="confirmarModalLabel">Confirmar Cambios</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body">
-        ¿Estás seguro de que quieres guardar los cambios en este kit?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="submit" class="btn btn-success">Confirmar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
   </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  const productos = JSON.parse('{{ componentes_json|safe }}');
+  const productos = [];
   const tabla = document.querySelector("#tabla-productos tbody");
   const inputHidden = document.getElementById("productos_json");
 
   const errorNombre = document.getElementById('error-nombre');
   const errorCantidad = document.getElementById('error-cantidad');
-
-  inputHidden.value = JSON.stringify(productos);
-
-  document.querySelectorAll('.eliminar').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const fila = btn.closest('tr');
-      fila.remove();
-      const index = productos.findIndex(p => p.id == id);
-      if (index !== -1) productos.splice(index, 1);
-      inputHidden.value = JSON.stringify(productos);
-    });
-  });
 
   document.getElementById('agregar').addEventListener('click', () => {
     const select = document.getElementById('producto');
@@ -113,19 +70,24 @@
     const productoId = select.value;
     const productoNombre = select.options[select.selectedIndex]?.dataset?.nombre;
 
+    // Limpiar errores anteriores
     errorCantidad.style.display = 'none';
+    errorCantidad.textContent = '';
     errorNombre.style.display = 'none';
 
+    // Validaciones
     if (!productoId) {
       errorCantidad.textContent = "Selecciona un producto.";
       errorCantidad.style.display = 'block';
       return;
     }
+
     if (isNaN(cantidad) || cantidad < 1) {
       errorCantidad.textContent = "La cantidad debe ser mayor a cero.";
       errorCantidad.style.display = 'block';
       return;
     }
+
     const yaExiste = productos.find(p => p.id === productoId);
     if (yaExiste) {
       errorCantidad.textContent = "Este producto ya fue agregado al kit.";
@@ -139,11 +101,11 @@
     fila.innerHTML = `
       <td>${productoNombre}</td>
       <td>${cantidad}</td>
-      <td><button type="button" class="btn btn-danger btn-sm eliminar" data-id="${productoId}">Eliminar</button></td>
+      <td><button type="button" class="btn btn-danger btn-sm eliminar">Eliminar</button></td>
     `;
     fila.querySelector('.eliminar').addEventListener('click', () => {
       fila.remove();
-      const index = productos.findIndex(p => p.id == productoId);
+      const index = productos.findIndex(p => p.id === productoId);
       if (index !== -1) productos.splice(index, 1);
       inputHidden.value = JSON.stringify(productos);
     });
@@ -151,10 +113,12 @@
     tabla.appendChild(fila);
     inputHidden.value = JSON.stringify(productos);
 
+    // Reset campos
     select.value = '';
     cantidadInput.value = '';
   });
 
+  // Validación al enviar el formulario
   document.querySelector("form").addEventListener("submit", (e) => {
     const nombreKit = document.getElementById('nombre').value.trim();
     if (!nombreKit) {

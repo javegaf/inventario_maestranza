@@ -9,9 +9,10 @@ import uuid
 from django.utils import timezone
 from django.forms import ValidationError, inlineformset_factory
 from django import forms
+from django.core.validators import RegexValidator
 from django.contrib.auth import get_user_model
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto,
+    Producto, MovimientoInventario, Proveedor, KitProducto, ProductoEnKit,
     CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialPrecio,
     Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema, OrdenCompraLog, ItemOrdenCompra, OrdenCompra
 )
