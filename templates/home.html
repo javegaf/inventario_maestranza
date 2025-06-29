@@ -40,6 +40,16 @@
   <div class="col">
     <div class="card h-100 shadow-sm">
       <div class="card-body text-center">
+        <i class="bi bi-file-earmark-text-fill display-4 text-primary"></i>
+        <h5 class="card-title mt-2">Órdenes de Compra</h5>
+        <a href="{% url 'inventario:ordenes_compra' %}" class="btn btn-outline-primary w-100 mt-2">Ver Órdenes de Compra</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body text-center">
         <i class="bi bi-truck display-4 text-secondary"></i>
         <h5 class="card-title mt-2">Proveedores</h5>
         <a href="{% url 'inventario:lista_proveedores' %}" class="btn btn-outline-secondary w-100 mt-2">Lista de Proveedores</a>
