@@ -18,16 +18,18 @@ from io import BytesIO
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.mail import send_mail
-from django.core.paginator import Paginator
-from django.db import models
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.db import models, transaction
 from django.db.models import Count, F, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
 from django.utils import timezone
-
+from django.views.decorators.http import require_POST
+from django.urls import reverse_lazy
+from django.views.generic import UpdateView
 # =====================================
 # Imports de terceros
 # =====================================
@@ -37,13 +39,13 @@ from xhtml2pdf import pisa
 # Imports locales
 # =====================================
 from .utils import exportar_excel_inventario, exportar_pdf_inventario
-
+from .forms import KitProductoForm, ProductoEnKitFormSet
 
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto,
+    Producto, MovimientoInventario, ProductoEnKit, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
-    Proyecto, MaterialProyecto, AuditoriaInformeInventario
+    Proyecto, MaterialProyecto, AuditoriaInformeInventario, OrdenCompra, ItemOrdenCompra, OrdenCompraLog
 )
 from .forms import (
     ProductoForm, ProductoEditableForm, MovimientoInventarioForm,
@@ -51,11 +53,12 @@ from .forms import (
     CompraProveedorForm, EvaluacionProveedorForm, LoteProductoForm, LoteFiltroForm,
     HistorialPrecioFiltroForm, RegistroPrecioManualForm, ProyectoForm,
     MaterialProyectoForm, ActualizarUsoMaterialForm,
-    ConfiguracionSistemaForm, InformeInventarioFiltroForm
+    ConfiguracionSistemaForm, InformeInventarioFiltroForm, OrdenCompraFiltroForm
 )
 
 logger = logging.getLogger(__name__)
-
+def is_staff(user):
+    return user.is_staff
 # Productos
 def lista_productos(request):
     """Muestra la lista de productos registrados en el sistema."""
@@ -99,7 +102,7 @@ def crear_producto(request):
     form = ProductoForm(request.POST or None)
     if form.is_valid():
         form.save()
-        return redirect('listar_productos')
+        return redirect('inventario:listar_productos')
     return render(request, 'productos/formulario_producto.html', {'form': form})
 
 @login_required
@@ -118,10 +121,14 @@ def editar_producto(request, producto_id):
             # Actualizar el stock mínimo en las alertas
             if producto.stock_minimo > 0:
                 # pylint: disable=no-member
+                mensaje_alerta = f"Stock mínimo actualizado: {producto_editado.stock_minimo}"
                 AlertaStock.objects.update_or_create(
-                    producto=producto,
-                    tipo_alerta='minimo',
-                    defaults={'umbral': producto.stock_minimo}
+                    producto=producto_editado,
+                    atendido=False,
+                    defaults={
+                        'mensaje': mensaje_alerta,
+                        'fecha_alerta': timezone.now()
+                    }
                 )
 
             messages.success(request, "Producto actualizado correctamente.")
@@ -132,41 +139,38 @@ def editar_producto(request, producto_id):
     return render(request, 'productos/form_producto.html', {'form': form})
 
 @login_required
+@require_POST
 def eliminar_producto(request, producto_id):
-    """Vista para eliminar un producto existente."""
+    """Elimina un producto si no tiene registros asociados."""
+    # pylint: disable=no-member
     producto = get_object_or_404(Producto, id=producto_id)
 
-    # Revisa si existen lotes o movimientos asociados al producto
-    # pylint: disable=no-member
+    # Verifica si tiene dependencias
     lotes_existentes = LoteProducto.objects.filter(producto=producto).exists()
     movimientos_existentes = MovimientoInventario.objects.filter(producto=producto).exists()
 
-    if request.method == 'POST':
-        if 'confirmar' in request.POST:
-            nombre_producto = producto.nombre
+    if lotes_existentes or movimientos_existentes:
+        messages.warning(
+            request, 'No se puede eliminar el producto porque tiene lotes o movimientos asociados.')
+    else:
+        try:
+            nombre = producto.nombre
+            producto.delete()
+            messages.success(request, f'Producto "{nombre}" eliminado correctamente.')
+        except Exception as e:
+            messages.error(request, f'Error al eliminar el producto: {e}')
 
-            try:
-                producto.delete()
-                messages.success(request, f'Producto "{nombre_producto}" eliminado correctamente.')
-            except Exception as e:
-                messages.error(request, f'Error al eliminar el producto: {e}')
-
-            return redirect('inventario:listar_productos')  # Add namespace
-
-    return render(request, 'productos/confirmar_eliminar_producto.html', {
-        'producto': producto,
-        'lotes_existentes': lotes_existentes,
-        'movimientos_existentes': movimientos_existentes,
-    })
+    return redirect('inventario:listar_productos')
 
 # Movimientos
+
 
 def lista_movimientos(request):
     """Vista para listar los movimientos de inventario con filtros."""
     # pylint: disable=no-member
-    movimientos = MovimientoInventario.objects.all().order_by('-fecha')
     form = MovimientoFiltroForm(request.GET or None)
-
+    movimientos_qs = MovimientoInventario.objects.all().order_by('-fecha')
+    movimientos = movimientos_qs  # por defecto
     # Revisa si el usuario es staff o no
     show_permission_alert = False
     if request.user.is_authenticated and not request.user.is_staff:
@@ -182,25 +186,39 @@ def lista_movimientos(request):
     if form.is_valid():
         if form.cleaned_data.get('fecha_inicio'):
             fecha_inicio = form.cleaned_data['fecha_inicio']
-            movimientos = movimientos.filter(
+            movimientos_qs = movimientos.filter(
                 fecha__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
         if form.cleaned_data.get('fecha_fin'):
             fecha_fin = form.cleaned_data['fecha_fin']
-            movimientos = movimientos.filter(
+            movimientos_qs = movimientos.filter(
                 fecha__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
         if form.cleaned_data.get('tipo_movimiento'):
-            movimientos = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
+            movimientos_qs = movimientos.filter(tipo=form.cleaned_data['tipo_movimiento'])
         if form.cleaned_data.get('producto'):
-            movimientos = movimientos.filter(producto=form.cleaned_data['producto'])
+            movimientos_qs = movimientos.filter(producto=form.cleaned_data['producto'])
         if form.cleaned_data.get('usuario'):
-            movimientos = movimientos.filter(usuario=form.cleaned_data['usuario'])
+            movimientos_qs = movimientos.filter(usuario=form.cleaned_data['usuario'])
+    # Paginación
+    paginator = Paginator(movimientos_qs, 5)
+    page_number = request.GET.get('page')
+    try:
+        movimientos = paginator.page(page_number)
+    except PageNotAnInteger:
+        movimientos = paginator.page(1)
+    except EmptyPage:
+        movimientos = paginator.page(paginator.num_pages)
 
+    # Excluir 'page' del querystring para mantener filtros
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    querystring = query_params.urlencode()
     return render(request, 'movimientos/lista_movimientos.html', {
         'movimientos': movimientos,
         'filtro_form': form,
-        'show_permission_alert': show_permission_alert
+        'show_permission_alert': show_permission_alert,
+        'querystring': querystring
     })
-
 # Keep crear_movimiento unchanged for now - it can still be accessed directly
 def crear_movimiento(request):
     """Vista para crear un nuevo movimiento de inventario."""
@@ -384,7 +402,7 @@ def alertas_stock(request):
             alerta = AlertaStock.objects.get(id=alerta_id)
             alerta.atendido = True
             alerta.save()
-            return redirect('alertas_stock')
+            return redirect('inventario:alertas_stock')
         except AlertaStock.DoesNotExist:
             pass
 
@@ -531,21 +549,153 @@ def enviar_alerta_automatica(alertas):
         print(f"DEBUG: send_mail failed with error: {str(e)}")
         raise e
 
-# Kits
+#kits
 
 def lista_kits(request):
-    """Vista para listar los kits de productos."""
-    # pylint: disable=no-member
+    # Obtener parámetros de filtro
+    nombre = request.GET.get('nombre', '')
+    codigo = request.GET.get('codigo', '')
+    categoria = request.GET.get('categoria', '')
+    
+    # Construir queryset filtrado
     kits = KitProducto.objects.all()
-    return render(request, 'kits/lista_kits.html', {'kits': kits})
+    
+    if nombre:
+        kits = kits.filter(Q(nombre__icontains=nombre))
+    if codigo:
+        kits = kits.filter(Q(codigo__icontains=codigo))
+    if categoria:
+        kits = kits.filter(categoria=categoria)
+    
+    # Obtener categorías únicas para el filtro
+    categorias = KitProducto.objects.values_list('categoria', flat=True).distinct()
+    
+    # Paginación
+    paginator = Paginator(kits, 10)  # 10 items por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'kits/lista_kits.html', {
+        'page_obj': page_obj,
+        'categorias': categorias,
+        'request': request  # Para mantener los parámetros de filtro
+    })
 
 def crear_kit(request):
-    """Vista para crear un nuevo kit de productos."""
-    form = KitProductoForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        return redirect('lista_kits')
-    return render(request, 'kits/formulario_kit.html', {'form': form})
+    if request.method == 'POST':
+        print("\n=== DATOS POST RECIBIDOS ===")
+        print(request.POST)  # Debug completo
+        
+        form = KitProductoForm(request.POST)
+        formset = ProductoEnKitFormSet(request.POST, prefix='productos')
+        
+        if form.is_valid():
+            print("\n=== FORMULARIO VÁLIDO ===")
+            print("Datos limpios:", form.cleaned_data)
+            
+            if formset.is_valid():
+                try:
+                    with transaction.atomic():
+                        print("\n=== INTENTANDO GUARDAR ===")
+                        kit = form.save()
+                        print(f"Kit guardado - ID: {kit.id}, Código: {kit.codigo}")
+                        
+                        # Guardar productos del kit
+                        instances = formset.save(commit=False)
+                        for instance in instances:
+                            instance.kit = kit
+                            instance.save()
+                            print(f"Producto guardado: {instance.producto.nombre}")
+                        
+                        messages.success(request, "Kit creado exitosamente")
+                        return redirect('inventario:lista_kits')
+                        
+                except Exception as e:
+                    print(f"\n=== ERROR DURANTE GUARDADO ===")
+                    print(f"Tipo de error: {type(e)}")
+                    print(f"Mensaje: {str(e)}")
+                    messages.error(request, f"Error al guardar: {str(e)}")
+            else:
+                print("\n=== ERRORES EN FORMSET ===")
+                print(formset.errors)
+        else:
+            print("\n=== ERRORES EN FORMULARIO ===")
+            print(form.errors)
+    else:
+        form = KitProductoForm()
+        formset = ProductoEnKitFormSet(queryset=ProductoEnKit.objects.none(), prefix='productos')
+    
+    productos_disponibles = Producto.objects.filter(stock_actual__gt=0)
+    
+    return render(request, 'kits/formulario_kit.html', {
+        'form': form,
+        'productos_disponibles': productos_disponibles,
+        'productos_formset': formset,
+        'titulo': 'Crear Kit'
+    })
+
+def editar_kit(request, pk):
+    kit = get_object_or_404(KitProducto, pk=pk)
+    
+    if request.method == 'POST':
+        form = KitProductoForm(request.POST, instance=kit)
+        formset = ProductoEnKitFormSet(request.POST, instance=kit)
+        
+        if form.is_valid() and formset.is_valid():
+            form.save()
+            formset.save()
+            kit.verificar_estado()  # Actualizar estado
+            messages.success(request, "Kit actualizado exitosamente!")
+            return redirect('inventario:lista_kits')
+    else:
+        form = KitProductoForm(instance=kit)
+        formset = ProductoEnKitFormSet(instance=kit)
+    
+    return render(request, 'kits/formulario_kit.html', {
+        'form': form,
+        'productos_formset': formset,
+        'kit': kit,
+        'titulo': f'Editar Kit: {kit.nombre}'
+    })
+
+def detalle_kit(request, pk):
+    kit = get_object_or_404(KitProducto, pk=pk)
+    return render(request, 'kits/detalle_kit.html', {
+        'kit': kit
+    })
+
+class KitUpdateView(UpdateView):
+    model = KitProducto
+    form_class = KitProductoForm
+    template_name = 'kits/formulario_kit.html'
+    success_url = reverse_lazy('inventario:lista_kits')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['productos_formset'] = ProductoEnKitFormSet(
+                self.request.POST,
+                instance=self.object
+            )
+        else:
+            context['productos_formset'] = ProductoEnKitFormSet(
+                instance=self.object,
+                queryset=ProductoEnKit.objects.filter(kit=self.object)
+            )
+        context['titulo'] = 'Editar Kit'
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        productos_formset = context['productos_formset']
+        
+        if productos_formset.is_valid():
+            self.object = form.save()
+            productos_formset.instance = self.object
+            productos_formset.save()
+            return super().form_valid(form)
+        else:
+            return self.render_to_response(self.get_context_data(form=form))
 
 # Reportes
 
@@ -1643,3 +1793,331 @@ def informe_inventario(request):
         'valores': valores,
     }
     return render(request, 'reportes/informe_inventario.html', contexto)
+
+def lista_ordenes_compra(request):
+    """Vista para listar órdenes de compra con filtros."""
+    form = OrdenCompraFiltroForm(request.GET or None)
+    ordenes_qs = OrdenCompra.objects.all().order_by('-fecha_creacion')
+    ordenes = ordenes_qs  # por defecto
+
+    if form.is_valid():
+        if form.cleaned_data.get('fecha_inicio'):
+            fecha_inicio = form.cleaned_data['fecha_inicio']
+            ordenes_qs = ordenes_qs.filter(
+                fecha_creacion__gte=datetime.datetime.combine(fecha_inicio, datetime.time.min))
+        if form.cleaned_data.get('fecha_fin'):
+            fecha_fin = form.cleaned_data['fecha_fin']
+            ordenes_qs = ordenes_qs.filter(
+                fecha_creacion__lte=datetime.datetime.combine(fecha_fin, datetime.time.max))
+        if form.cleaned_data.get('estado'):
+            ordenes_qs = ordenes_qs.filter(estado=form.cleaned_data['estado'])
+        if form.cleaned_data.get('proveedor'):
+            ordenes_qs = ordenes_qs.filter(proveedor=form.cleaned_data['proveedor'])
+
+    # Paginación
+    paginator = Paginator(ordenes_qs, 10)
+    page_number = request.GET.get('page')
+    try:
+        ordenes = paginator.page(page_number)
+    except PageNotAnInteger:
+        ordenes = paginator.page(1)
+    except EmptyPage:
+        ordenes = paginator.page(paginator.num_pages)
+
+    # Excluir 'page' del querystring para mantener filtros
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    querystring = query_params.urlencode()
+
+    return render(request, 'compras/lista_ordenes_compra.html', {
+        'ordenes': ordenes,
+        'filtro_form': form,
+        'querystring': querystring
+    })
+
+def detalle_orden_compra(request, orden_id):
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    return render(request, 'compras/detalle_orden_compra.html', {'orden': orden})
+
+@login_required
+@user_passes_test(is_staff)
+def aprobar_orden_compra(request, orden_id):
+    """Aprobar una orden de compra."""
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    if orden.estado == 'sugerida':
+        orden.estado = 'aprobada'
+        orden.fecha_aprobacion = timezone.now()
+        orden.usuario_aprobacion = request.user
+        orden.save()
+        
+        # Crear registro en el log
+        OrdenCompraLog.objects.create(
+            orden=orden,
+            estado='aprobada',
+            descripcion=f"Orden aprobada por {request.user.username}",
+            usuario=request.user
+        )
+        
+        messages.success(request, "Orden aprobada exitosamente.")
+    else:
+        messages.warning(request, "Solo se pueden aprobar órdenes en estado 'sugerida'.")
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+@login_required
+@user_passes_test(is_staff)
+def cancelar_orden_compra(request, orden_id):
+    """Cancelar una orden de compra."""
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    if orden.estado in ['sugerida', 'pendiente', 'aprobada']:
+        orden.estado = 'cancelada'
+        orden.fecha_cancelacion = timezone.now()
+        orden.save()
+        
+        # Crear registro en el log
+        OrdenCompraLog.objects.create(
+            orden=orden,
+            estado='cancelada',
+            descripcion=f"Orden cancelada por {request.user.username}",
+            usuario=request.user
+        )
+        
+        messages.warning(request, "Orden cancelada.")
+    else:
+        messages.warning(request, "Solo se pueden cancelar órdenes que no estén recepcionadas o ya canceladas.")
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+@login_required
+@user_passes_test(is_staff)
+def recibir_orden_compra(request, orden_id):
+    """Recibir una orden de compra y generar lotes."""
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+
+    if orden.estado != 'aprobada':
+        messages.warning(request, "Solo se pueden recibir órdenes en estado 'aprobada'.")
+        return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+    try:
+        orden.estado = 'recepcionada'
+        orden.fecha_recepcion = timezone.now()
+        orden.save()
+
+        lotes_creados = []
+
+        for item in orden.items.all():
+            producto = item.producto
+            lote = LoteProducto.objects.create(
+                producto=producto,
+                cantidad_inicial=item.cantidad,
+                cantidad_actual=item.cantidad,
+                numero_lote=f"OC{orden.id}-P{producto.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+                fecha_vencimiento=timezone.now().date() + datetime.timedelta(days=30),  # Por defecto, vence en 30 días
+            )
+            producto.stock_actual += item.cantidad
+            producto.save()
+            
+            # Marcar alertas como atendidas si ya se resolvió el bajo stock
+            from .models import AlertaStock
+            if producto.stock_actual >= producto.stock_minimo:
+                AlertaStock.objects.filter(producto=producto, atendido=False).update(atendido=True)
+                
+            lotes_creados.append(lote.id)
+
+        # Crear registro en el log
+        OrdenCompraLog.objects.create(
+            orden=orden,
+            estado='recepcionada',
+            descripcion=f"Orden recepcionada por {request.user.username}. {len(lotes_creados)} lotes generados. Alertas de stock atendidas.",
+            usuario=request.user
+        )
+
+        if lotes_creados:
+            messages.success(request, f"Orden recepcionada. {len(lotes_creados)} lotes generados satisfactoriamente. Alertas de stock atendidas.")
+        else:
+            messages.success(request, "Orden recepcionada.")
+
+    except Exception as e:
+        messages.error(request, f"Error al recibir la orden: {str(e)}")
+        logger.error(f"Error receiving order {orden_id}: {str(e)}")
+
+    return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+
+@login_required
+@user_passes_test(is_staff)
+def editar_orden_compra(request, orden_id):
+    """Vista para editar una orden de compra existente."""
+    orden = get_object_or_404(OrdenCompra, id=orden_id)
+    
+    # Verificar que la orden se pueda editar
+    if orden.estado not in ['sugerida', 'pendiente']:
+        messages.error(request, "Solo se pueden editar órdenes en estado 'sugerida' o 'pendiente'.")
+        return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+    
+    productos_disponibles = Producto.objects.filter(proveedor=orden.proveedor)
+
+    if request.method == 'POST':
+        try:
+            productos_ids = request.POST.getlist('productos[]')
+            cantidades = request.POST.getlist('cantidades[]')
+            precios = request.POST.getlist('precios[]')
+            
+            # Validar que todos los arrays tengan la misma longitud
+            if len(productos_ids) != len(cantidades) or len(productos_ids) != len(precios):
+                messages.error(request, "Error en los datos del formulario. Por favor, inténtalo de nuevo.")
+                return redirect('inventario:editar_orden_compra', orden_id=orden.id)
+            
+            productos_validos = []
+            productos_agregados = set()
+
+            # Procesar cada fila del formulario
+            for i in range(len(productos_ids)):
+                try:
+                    producto_id = int(productos_ids[i])
+                    cantidad = int(cantidades[i]) if cantidades[i] else 0
+                    precio_unitario = float(precios[i]) if precios[i] else 0.0
+
+                    # Validar datos
+                    if cantidad <= 0:
+                        continue
+
+                    if producto_id in productos_agregados:
+                        continue  # evitar productos duplicados
+
+                    producto = Producto.objects.get(id=producto_id, proveedor=orden.proveedor)
+                    productos_validos.append((producto, cantidad, precio_unitario))
+                    productos_agregados.add(producto_id)
+
+                except (ValueError, Producto.DoesNotExist, IndexError):
+                    continue  # ignora cualquier fila mal formada
+
+            if not productos_validos:
+                messages.error(request, "Debe agregar al menos un producto válido con cantidad mayor a 0.")
+                return redirect('inventario:editar_orden_compra', orden_id=orden.id)
+
+            # Guardar estado anterior para el log
+            items_anterior = list(orden.items.all().values('producto__nombre', 'cantidad', 'precio_unitario'))
+            
+            # Borrar todos los ítems existentes
+            orden.items.all().delete()
+
+            # Crear nuevos ítems
+            for producto, cantidad, precio_unitario in productos_validos:
+                ItemOrdenCompra.objects.create(
+                    orden=orden,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario
+                )
+
+            # Crear registro en el log
+            OrdenCompraLog.objects.create(
+                orden=orden,
+                estado='modificada',
+                descripcion=f"Orden modificada por {request.user.username}. Productos actualizados.",
+                usuario=request.user
+            )
+
+            messages.success(request, "Orden de compra actualizada correctamente.")
+            return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error al actualizar la orden: {str(e)}")
+            logger.error(f"Error editing order {orden_id}: {str(e)}")
+            return redirect('inventario:editar_orden_compra', orden_id=orden.id)
+
+    return render(request, 'Compras/formulario_orden_compra.html', {
+        'orden': orden,
+        'productos_disponibles': productos_disponibles
+    })
+
+@login_required
+def obtener_productos_disponibles(request, proveedor_id):
+    print("LLAMADA AJAX RECIBIDA")
+    seleccionados = request.GET.getlist('seleccionados[]')
+    productos = Producto.objects.filter(proveedor_id=proveedor_id).exclude(id__in=seleccionados)
+    data = [{'id': p.id, 'nombre': p.nombre} for p in productos]
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def crear_orden_compra(request):
+    """Crear una nueva orden de compra."""
+    proveedores = Proveedor.objects.all()
+
+    if request.method == 'POST':
+        proveedor_id = request.POST.get('proveedor')
+        productos_ids = request.POST.getlist('productos[]')
+        cantidades = request.POST.getlist('cantidades[]')
+        precios = request.POST.getlist('precios[]')
+
+        if not proveedor_id:
+            messages.error(request, "Debe seleccionar un proveedor.")
+            return redirect('inventario:crear_orden_compra')
+
+        try:
+            proveedor = Proveedor.objects.get(id=proveedor_id)
+        except Proveedor.DoesNotExist:
+            messages.error(request, "Proveedor inválido.")
+            return redirect('inventario:crear_orden_compra')
+
+        productos_validos = []
+
+        for i in range(len(productos_ids)):
+            if not productos_ids[i] or not cantidades[i] or not precios[i]:
+                continue
+
+            try:
+                producto_id = int(productos_ids[i])
+                cantidad = int(cantidades[i])
+                precio_unitario = float(precios[i])
+
+                if cantidad <= 0:
+                    continue
+
+                producto = Producto.objects.get(id=producto_id, proveedor=proveedor)
+                productos_validos.append((producto, cantidad, precio_unitario))
+
+            except (ValueError, Producto.DoesNotExist):
+                continue
+
+        if not productos_validos:
+            messages.error(request, "Debe agregar al menos un producto con cantidad válida.")
+            return redirect('inventario:crear_orden_compra')
+
+        try:
+            # Crear la orden de compra
+            orden = OrdenCompra.objects.create(proveedor=proveedor)
+
+            for producto, cantidad, precio_unitario in productos_validos:
+                ItemOrdenCompra.objects.create(
+                    orden=orden,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario
+                )
+
+            # Crear registro en el log
+            OrdenCompraLog.objects.create(
+                orden=orden,
+                estado='creada',
+                descripcion=f"Orden creada por {request.user.username} con {len(productos_validos)} productos",
+                usuario=request.user
+            )
+
+            messages.success(request, f"Orden #{orden.id} creada exitosamente.")
+            return redirect('inventario:detalle_orden_compra', orden_id=orden.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error al crear la orden: {str(e)}")
+            logger.error(f"Error creating order: {str(e)}")
+            return redirect('inventario:crear_orden_compra')
+
+    return render(request, 'Compras/crear_orden_compra.html', {
+        'orden': None,
+        'proveedores': proveedores,
+    })
+@login_required
+def productos_por_proveedor(request):
+    proveedor_id = request.GET.get('proveedor_id')
+    productos = Producto.objects.filter(proveedor_id=proveedor_id).values('id', 'nombre')
+    return JsonResponse(list(productos), safe=False)

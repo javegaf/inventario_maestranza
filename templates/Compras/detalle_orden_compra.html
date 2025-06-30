@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load inventario_extras %}
+{% load static %}
+{% block title %}Detalle Orden #{{ orden.id }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h2>Detalle Orden de Compra #{{ orden.id }}</h2>
+  </div>
+</div>
+{% if user.is_staff %}
+<div class="d-flex justify-content-end mb-3 gap-2">
+  {% if orden.estado == 'sugerida' %}
+      <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar">
+          <i class="bi bi-pencil"></i> Editar Orden
+      </button>
+      <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAprobar">
+          <i class="bi bi-check-circle"></i> Aprobar
+      </button>
+      <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
+          <i class="bi bi-x-circle"></i> Cancelar
+      </button>
+  {% elif orden.estado == 'aprobada' %}
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalRecibir">
+          <i class="bi bi-box-arrow-in-down"></i> Marcar como Recibida
+      </button>
+  {% endif %}
+</div>
+{% endif %}
+<div class="card mb-4">
+  <div class="card-body">
+    <p><strong>Proveedor:</strong> {{ orden.proveedor.nombre }}</p>
+    <p><strong>Estado:</strong>
+      <span class="badge bg-{{ orden.estado|get_estado_color }}">
+        {{ orden.get_estado_display }}
+      </span>
+    </p>
+    <p><strong>Fecha creación:</strong> {{ orden.fecha_creacion|date:"d/m/Y H:i" }}</p>
+    {% if orden.fecha_aprobacion %}
+      <p><strong>Fecha aprobación:</strong> {{ orden.fecha_aprobacion|date:"d/m/Y H:i" }}</p>
+    {% endif %}
+    {% if orden.fecha_recepcion %}
+      <p><strong>Fecha recepción:</strong> {{ orden.fecha_recepcion|date:"d/m/Y H:i" }}</p>
+    {% endif %}
+    {% if orden.fecha_cancelacion %}
+      <p><strong>Fecha cancelación:</strong> {{ orden.fecha_cancelacion|date:"d/m/Y H:i" }}</p>
+    {% endif %}
+    <p><strong>Observaciones:</strong> {{ orden.observaciones|default:"-" }}</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Productos solicitados</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Stock Actual</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in orden.items.all %}
+          <tr>
+            <td>{{ item.producto.nombre }}</td>
+            <td>{{ item.cantidad }}</td>
+            <td>
+                {% if item.producto.stock_actual <= item.producto.stock_minimo %}
+                  <span class="text-danger fw-bold">{{ item.producto.stock_actual }}</span>
+                {% else %}
+                  {{ item.producto.stock_actual }}
+                {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="2" class="text-center text-muted">No hay productos en esta orden.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header">
+      <h5 class="mb-0">Historial de cambios</h5>
+    </div>
+    <div class="card-body p-0">
+      {% if orden.logs.exists %}
+      <ul class="list-group list-group-flush">
+        {% for log in orden.logs.all|dictsortreversed:"fecha" %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <div>
+              <i class="bi bi-clock-history me-2 text-secondary"></i>
+              <strong>{{ log.estado|title }}</strong>
+              <small class="text-muted">— {{ log.descripcion }}</small>
+            </div>
+            <div class="text-end">
+              <small class="text-muted">
+                {{ log.fecha|date:"d/m/Y H:i" }}<br>
+                {% if log.usuario %}
+                  por {{ log.usuario.get_full_name|default:log.usuario.username }}
+                {% else %}
+                  por el sistema
+                {% endif %}
+              </small>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="p-3 text-center text-muted">
+        <i class="bi bi-inbox fs-1"></i>
+        <p class="mt-2 mb-0">No hay historial registrado aún.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <!-- Modal Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        ¿Estás seguro que deseas editar esta orden de compra?
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'inventario:editar_orden_compra' orden.id %}" class="btn btn-primary">Sí, Editar</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Aprobar -->
+<div class="modal fade" id="modalAprobar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Aprobar Orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        ¿Estás seguro que deseas aprobar esta orden? Luego podrás recibirla.
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'inventario:aprobar_orden_compra' orden.id %}" class="btn btn-success">Sí, Aprobar</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cancelar -->
+<div class="modal fade" id="modalCancelar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cancelar Orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        ¿Seguro que deseas cancelar esta orden de compra? Esta acción no se puede deshacer.
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'inventario:cancelar_orden_compra' orden.id %}" class="btn btn-danger">Sí, Cancelar</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Volver</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Recibir -->
+<div class="modal fade" id="modalRecibir" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Recibir Orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        ¿Estás seguro que deseas marcar esta orden como recibida? Se generarán los lotes correspondientes.
+      </div>
+      <div class="modal-footer">
+        <a href="{% url 'inventario:recibir_orden_compra' orden.id %}" class="btn btn-primary">Sí, Recibir</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

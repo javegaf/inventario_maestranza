@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Detalle del Kit - {{ kit.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">
+                <i class="bi bi-box-seam"></i> Detalle del Kit: {{ kit.nombre }}
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5 class="border-bottom pb-2">Información Básica</h5>
+                    <p><strong>Código:</strong> {{ kit.codigo }}</p>
+                    <p><strong>Categoría:</strong> {{ kit.categoria|default:"-" }}</p>
+                    <p><strong>Estado:</strong> 
+                        <span class="badge {% if kit.activo %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if kit.activo %}Activo{% else %}Inactivo{% endif %}
+                        </span>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="border-bottom pb-2">Stock</h5>
+                    <p><strong>Disponible:</strong> {{ kit.stock_actual }}</p>
+                    {% if kit.productos_insuficientes %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle"></i> Algunos componentes tienen stock insuficiente
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h5 class="border-bottom pb-2 mb-3">Componentes del Kit</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad Requerida</th>
+                            <th>Stock Disponible</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in kit.productoenkit_set.all %}
+                        <tr class="{% if item.producto.stock_actual < item.cantidad %}table-warning{% endif %}">
+                            <td>{{ item.producto.nombre }}</td>
+                            <td>{{ item.cantidad }}</td>
+                            <td>{{ item.producto.stock_actual }}</td>
+                            <td>
+                                {% if item.producto.stock_actual < item.cantidad %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-exclamation-triangle"></i> Insuficiente
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Suficiente
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'inventario:lista_kits' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver al listado
+                </a>
+                <div>
+                    <a href="{% url 'inventario:editar_kit' kit.id %}" class="btn btn-primary me-2">
+                        <i class="bi bi-pencil"></i> Editar Kit
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

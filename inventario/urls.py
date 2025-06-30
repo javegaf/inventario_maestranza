@@ -30,6 +30,8 @@ urlpatterns = [
 
     path('kits/', views.lista_kits, name='lista_kits'),
     path('kits/nuevo/', views.crear_kit, name='crear_kit'),
+    path('kits/editar/<int:pk>/', views.editar_kit, name='editar_kit'),
+    path('kits/detalle/<int:pk>/', views.detalle_kit, name='detalle_kit'),
 
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),
@@ -75,4 +77,16 @@ urlpatterns = [
          views.api_producto_info, name='api_producto_info'),
 
     path('configuracion/', views.configuracion_sistema, name='configuracion_sistema'),
+    
+    
+    path('ordenes/', views.lista_ordenes_compra, name='ordenes_compra'),
+    path('ordenes/<int:orden_id>/', views.detalle_orden_compra, name='detalle_orden_compra'),
+    path('ordenes/<int:orden_id>/aprobar/', views.aprobar_orden_compra, name='aprobar_orden_compra'),
+    path('ordenes/<int:orden_id>/cancelar/', views.cancelar_orden_compra, name='cancelar_orden_compra'),
+    path('ordenes/<int:orden_id>/recibir/', views.recibir_orden_compra, name='recibir_orden_compra'),
+    path('ordenes/<int:orden_id>/editar/', views.editar_orden_compra, name='editar_orden_compra'),
+    path('ordenes/crear/', views.crear_orden_compra, name='crear_orden_compra'),
+    path('ajax/productos-por-proveedor/', views.productos_por_proveedor, name='productos_por_proveedor'),
+    path('ajax/productos-disponibles/<int:proveedor_id>/', views.obtener_productos_disponibles, name='ajax_productos_disponibles'),
+
 ]

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Crear Orden de Compra{% endblock %}
+{% block content %}
+
+<h2>Crear Orden de Compra</h2>
+<form method="post">
+  {% csrf_token %}
+
+  <div class="mb-3">
+    <label for="proveedor" class="form-label">Proveedor:</label>
+    <select id="proveedor" name="proveedor" class="form-select" required>
+      <option value="">-- Selecciona un proveedor --</option>
+      {% for proveedor in proveedores %}
+        <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">Productos</div>
+    <div class="card-body">
+      <table class="table" id="tabla-productos">
+        <thead>
+          <tr>
+            <th>Producto</th><th>Cantidad</th><th>Precio</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <select class="form-select producto-select" name="productos[]" required></select>
+            </td>
+            <td><input type="number" name="cantidades[]" class="form-control" min="1" required></td>
+            <td><input type="number" name="precios[]" class="form-control" min="0" step="0.01"></td>
+            <td><button type="button" class="btn btn-danger" onclick="eliminarFila(this)"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="btn btn-outline-primary" onclick="agregarFila()">+ Agregar Producto</button>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-success">Crear Orden</button>
+</form>
+
+<script>
+function cargarProductos(proveedorId) {
+  fetch(`/inventario/ajax/productos-por-proveedor/?proveedor_id=${proveedorId}`)
+    .then(response => response.json())
+    .then(data => {
+      const selects = document.querySelectorAll('.producto-select');
+      selects.forEach(select => {
+        select.innerHTML = ''; // Limpia
+        data.forEach(producto => {
+          const option = document.createElement('option');
+          option.value = producto.id;
+          option.textContent = producto.nombre;
+          select.appendChild(option);
+        });
+      });
+    });
+}
+
+function agregarFila() {
+  const fila = document.querySelector('#tabla-productos tbody tr').cloneNode(true);
+  fila.querySelectorAll('input').forEach(i => i.value = '');
+  document.querySelector('#tabla-productos tbody').appendChild(fila);
+}
+
+function eliminarFila(btn) {
+  const fila = btn.closest('tr');
+  const tbody = document.querySelector('#tabla-productos tbody');
+  if (tbody.rows.length > 1) fila.remove();
+}
+
+document.getElementById('proveedor').addEventListener('change', e => {
+  cargarProductos(e.target.value);
+});
+</script>
+
+{% endblock %}

@@ -4,13 +4,17 @@ Este archivo contiene los formularios ModelForm utilizados para crear y editar
 productos, movimientos de inventario, proveedores y kits de productos.
 """
 
+import re
+import uuid
 from django.utils import timezone
+from django.forms import ValidationError, inlineformset_factory
 from django import forms
+from django.core.validators import RegexValidator
 from django.contrib.auth import get_user_model
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto,
+    Producto, MovimientoInventario, Proveedor, KitProducto, ProductoEnKit,
     CompraProveedor, EvaluacionProveedor, LoteProducto, HistorialPrecio,
-    Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema
+    Proyecto, MaterialProyecto, AuditoriaInventario, ConfiguracionSistema, OrdenCompraLog, ItemOrdenCompra, OrdenCompra
 )
 
 User = get_user_model()
@@ -239,12 +243,156 @@ class ProveedorForm(forms.ModelForm):
 
 
 class KitProductoForm(forms.ModelForm):
-    """Formulario para crear kits de productos."""
+    codigo_editable = forms.CharField(
+        required=False,
+        label="Código del Kit (editable)",
+        help_text="El código comienza con KST-. Puedes editar la parte después del guión.",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingrese sufijo (ej: ABC123)'
+        }),
+        validators=[
+            RegexValidator(
+                regex='^[A-Z0-9-]*$',
+                message='Solo se permiten letras mayúsculas, números y guiones',
+                code='invalid_code'
+            )
+        ]
+    )
 
     class Meta:
         """Especifica los campos y widgets del formulario."""
         model = KitProducto
-        fields = '__all__'
+        fields = ['nombre', 'categoria', 'descripcion', 'activo']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Kit de mantenimiento preventivo'
+            }),
+            'categoria': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Kits de repuestos'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Descripción detallada del kit'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        if self.instance and self.instance.pk:
+            if self.instance.codigo and self.instance.codigo.startswith('KST-'):
+                self.fields['codigo_editable'].initial = self.instance.codigo[4:]
+            
+            self.fields['codigo_mostrar'] = forms.CharField(
+                initial=self.instance.codigo,
+                label="Código Completo",
+                required=False,
+                widget=forms.TextInput(attrs={
+                    'class': 'form-control bg-light',
+                    'readonly': True
+                })
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Eliminar validación de código aquí (se maneja en save())
+        return cleaned_data
+
+    def clean_codigo_editable(self):
+        codigo_editable = self.cleaned_data.get('codigo_editable', '').strip().upper()
+        
+        if codigo_editable:
+            if codigo_editable.startswith('KST-'):
+                codigo_editable = codigo_editable[4:]
+            
+            if not re.match('^[A-Z0-9-]*$', codigo_editable):
+                raise ValidationError("Solo se permiten letras mayúsculas, números y guiones")
+        
+        return codigo_editable
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Debug: Mostrar estado antes de guardar
+        print(f"Guardando kit. Instancia nueva: {not instance.pk}")
+        print(f"Datos codigo_editable: {self.cleaned_data.get('codigo_editable')}")
+
+        # Generación del código
+        codigo_editable = self.cleaned_data.get('codigo_editable', '').strip()
+        instance.codigo = f"KST-{codigo_editable if codigo_editable else uuid.uuid4().hex[:6].upper()}"
+        
+        # Debug: Mostrar código generado
+        print(f"Código generado: {instance.codigo}")
+
+        if commit:
+            try:
+                instance.save()
+                print("¡Kit guardado exitosamente!")
+            except Exception as e:
+                print(f"Error al guardar: {str(e)}")
+                raise
+        
+        return instance
+
+
+class ProductoEnKitForm(forms.ModelForm):
+    class Meta:
+        model = ProductoEnKit
+        fields = ['producto', 'cantidad']
+        widgets = {
+            'producto': forms.Select(attrs={
+                'class': 'form-select producto-select',
+                'data-live-search': 'true'
+            }),
+            'cantidad': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Cantidad',
+                'min': 1
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['producto'].queryset = Producto.objects.filter(
+            stock_actual__gt=0
+        ).exclude(
+            auditoriainventario__bloqueado=True
+        ).distinct().order_by('nombre')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        producto = cleaned_data.get('producto')
+        cantidad = cleaned_data.get('cantidad')
+        
+        if producto and cantidad:
+            if producto.stock_actual < cantidad:
+                self.add_error(
+                    'cantidad', 
+                    f"Stock insuficiente. Disponible: {producto.stock_actual}"
+                )
+            if producto.is_blocked:
+                self.add_error(
+                    'producto',
+                    "Este producto está actualmente bloqueado"
+                )
+        return cleaned_data
+
+
+# Configuración del FormSet
+ProductoEnKitFormSet = inlineformset_factory(
+    KitProducto,
+    ProductoEnKit,
+    form=ProductoEnKitForm,
+    fields=('producto', 'cantidad'),
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True
+)
 
 
 class LoteProductoForm(forms.ModelForm):
@@ -582,3 +730,25 @@ class InformeInventarioFiltroForm(forms.Form):
         if valor is not None and valor < 0:
             raise forms.ValidationError("El stock máximo no puede ser negativo.")
         return None if valor == 0 else valor
+
+
+
+class OrdenCompraFiltroForm(forms.Form):
+    fecha_inicio = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    fecha_fin = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    estado = forms.ChoiceField(
+        required=False,
+        choices=[('', 'Todos')] + list(OrdenCompra.ESTADOS),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    proveedor = forms.ModelChoiceField(
+        required=False,
+        queryset=Proveedor.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )

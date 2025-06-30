@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Eliminar Kit{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="card shadow">
+    <div class="card-header bg-danger text-white">
+      <h4 class="mb-0"><i class="bi bi-trash-fill"></i> Confirmar eliminación</h4>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <p class="fs-5">¿Estás seguro de que deseas eliminar el kit <strong>"{{ kit.nombre }}"</strong>? Esta acción no se puede deshacer.</p>
+        <div class="d-flex justify-content-end mt-4 gap-2">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-check-circle-fill"></i> Sí, eliminar
+          </button>
+          <a href="{% url 'inventario:lista_kits' %}" class="btn btn-secondary">
+            <i class="bi bi-x-circle-fill"></i> Cancelar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,13 +1,167 @@
-{# /templates/kits/lista_kits.html #}
 {% extends 'base.html' %}
-{% block title %}Kits de Productos{% endblock %}
+{% load static %}
+{% block title %}Listado de Kits{% endblock %}
+
 {% block content %}
-<h2>Kits disponibles</h2>
-<ul class="list-group">
-    {% for kit in kits %}
-    <li class="list-group-item">
-        {{ kit.nombre }} - Contiene: {{ kit.productos.all|join:", " }}
-    </li>
-    {% endfor %}
-</ul>
+<h2 class="mb-4">Listado de Kits</h2>
+
+<!-- FILTRO -->
+<form method="get" class="p-3 rounded border bg-secondary bg-opacity-10 mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" name="nombre" id="nombre" class="form-control" value="{{ request.GET.nombre }}"
+                placeholder="Ej. Kit herramientas">
+        </div>
+        <div class="col-md-4">
+            <label for="codigo" class="form-label">Código</label>
+            <input type="text" name="codigo" id="codigo" class="form-control" value="{{ request.GET.codigo }}"
+                placeholder="Código del kit">
+        </div>
+        <div class="col-md-3">
+            <label for="categoria" class="form-label">Categoría</label>
+            <select name="categoria" id="categoria" class="form-select">
+                <option value="">Todas</option>
+                {% for c in categorias %}
+                <option value="{{ c }}" {% if request.GET.categoria == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<!-- TABLA -->
+<div class="table-responsive">
+    <table class="table table-bordered table-striped table-hover" id="tabla-kits">
+        <thead class="table-dark">
+            <tr>
+                <th>Nombre</th>
+                <th>Código</th>
+                <th>Categoría</th>
+                <th>Productos incluidos</th>
+                <th>Stock Disponible</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for kit in page_obj %}
+            <tr class="{% if not kit.activo %}table-secondary{% endif %}">
+                <td>
+                    {{ kit.nombre }}
+                    {% if not kit.activo %}
+                    <span class="badge bg-warning text-dark ms-2">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td>{{ kit.codigo }}</td>
+                <td>{{ kit.categoria|default:"-" }}</td>
+                <td>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in kit.productoenkit_set.all %}
+                        <li>
+                            {{ item.producto.nombre }}
+                            <span class="badge bg-secondary">{{ item.cantidad }}x</span>
+                            {% if item.producto.stock_actual < item.cantidad %} <span class="badge bg-danger ms-1">
+                                <i class="bi bi-exclamation-triangle"></i> Stock insuficiente
+                                </span>
+                                {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </td>
+                <td>
+                    <span class="fw-bold">{{ kit.stock_actual }}</span>
+                    {% if kit.productos_insuficientes %}
+                    <span class="badge bg-warning text-dark d-block mt-1">
+                        <i class="bi bi-exclamation-triangle"></i> Componentes faltantes
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="text-nowrap">
+                    <a href="{% url 'inventario:editar_kit' kit.id %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <a href="{% url 'inventario:detalle_kit' kit.id %}" class="btn btn-sm btn-info">
+                        <i class="bi bi-eye"></i> Detalles
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> No se encontraron kits.
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- PAGINACIÓN -->
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1">&laquo; Primera</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+        </li>
+        {% endif %}
+
+        <li class="page-item disabled">
+            <span class="page-link">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última &raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- BOTÓN AGREGAR -->
+<div class="mt-3">
+    <a href="{% url 'inventario:crear_kit' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Crear Nuevo Kit
+    </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Búsqueda en tiempo real
+    document.getElementById("buscar").addEventListener("keyup", function () {
+        const filtro = this.value.toLowerCase();
+        document.querySelectorAll("#tabla-kits tbody tr").forEach(function (fila) {
+            const texto = fila.textContent.toLowerCase();
+            fila.style.display = texto.includes(filtro) ? "" : "none";
+        });
+    });
+
+    // Manejo de eliminación (si decides implementarlo después)
+    const modalEliminar = document.getElementById('modalConfirmarEliminar');
+    if (modalEliminar) {
+        modalEliminar.addEventListener('show.bs.modal', function (event) {
+            const boton = event.relatedTarget;
+            const kitId = boton.getAttribute('data-id');
+            const kitNombre = boton.getAttribute('data-nombre');
+            modalEliminar.querySelector('#kitAEliminar').textContent = kitNombre;
+            modalEliminar.querySelector('#btnConfirmarEliminar').href = `/inventario/kits/eliminar/${kitId}/`;
+        });
+    }
+</script>
 {% endblock %}

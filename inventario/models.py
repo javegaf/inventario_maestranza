@@ -1,8 +1,11 @@
 """Modelos del sistema de control de inventario."""
 from datetime import datetime
 from django.db import models
+from django.forms import ValidationError
 from django.utils import timezone
 from django.conf import settings
+from django.db.models import Max
+import uuid
 
 class Producto(models.Model):
     """Modelo que representa un producto individual del inventario."""
@@ -41,7 +44,7 @@ class LoteProducto(models.Model):
     """Modelo que representa un lote específico de un producto."""
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes')
     numero_lote = models.CharField(max_length=50, unique=True)
-    fecha_vencimiento = models.DateField()
+    fecha_vencimiento = models.DateField(null=True, blank=True)
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
     cantidad_inicial = models.PositiveIntegerField()
     cantidad_actual = models.PositiveIntegerField()
@@ -72,6 +75,7 @@ class LoteProducto(models.Model):
         if self.cantidad_inicial == 0:
             return 0
         return ((self.cantidad_inicial - self.cantidad_actual) / self.cantidad_inicial) * 100
+
 
 
 class HistorialLote(models.Model):
@@ -311,17 +315,84 @@ class EvaluacionProveedor(models.Model):
 
 class KitProducto(models.Model):
     """Modelo que representa un kit compuesto por varios productos."""
-
     nombre = models.CharField(max_length=100)
-    productos = models.ManyToManyField(Producto, through='ProductoEnKit')
+    descripcion = models.TextField(blank=True)
+    codigo = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Código del Kit",
+        help_text="El código debe comenzar con KST- seguido de números o letras"
+    )
 
+    categoria = models.CharField(max_length=100, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Kit de Producto"
+        verbose_name_plural = "Kits de Productos"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo})"
+
+    def clean(self):
+    # Solo validar si el código ya existe (evitar validación durante creación)
+        if self.codigo and not self.codigo.startswith('KST-'):
+            raise ValidationError(
+            {'codigo': "El código debe comenzar con 'KST-'"}
+        )
+    
+        if self.codigo and len(self.codigo) <= 4:
+            raise ValidationError(
+            {'codigo': "El código debe tener al menos un carácter después de 'KST-'"}
+        )
+    
+    def save(self, *args, **kwargs):
+        # Asegurar que el código esté en mayúsculas
+        self.codigo = self.codigo.upper()
+        super().save(*args, **kwargs)
+
+    @property
+    def stock_actual(self):
+        """Calcula el stock disponible basado en los productos componentes."""
+        items = self.productoenkit_set.select_related('producto').all()
+        return min(
+            (item.producto.stock_actual // item.cantidad for item in items),
+            default=0
+        )
+
+    def verificar_estado(self):
+        """
+        Actualiza el estado del kit basado en sus componentes
+        """
+        try:
+            componentes = self.productoenkit_set.all()
+            nuevo_estado = all(
+                componente.producto.stock_actual >= componente.cantidad
+                for componente in componentes
+            )
+            self.activo = nuevo_estado
+            self.save()
+        except Exception as e:
+            print(f"Error al verificar estado del kit {self.codigo}: {str(e)}")
+
+    @property
+    def productos_insuficientes(self):
+        """Retorna los productos que no tienen stock suficiente para el kit"""
+        return [
+            item for item in self.productoenkit_set.select_related('producto').all()
+            if item.producto.stock_actual < item.cantidad
+        ]
 
 class ProductoEnKit(models.Model):
-    """Modelo intermedio que vincula productos a un kit específico."""
-
     kit = models.ForeignKey(KitProducto, on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.PositiveIntegerField()
+    cantidad = models.PositiveIntegerField(default=1)
+    
+    def __str__(self):
+        return f"{self.cantidad}x {self.producto.nombre} en {self.kit.nombre}"
 
 
 class HistorialPrecio(models.Model):
@@ -595,3 +666,54 @@ class AuditoriaInformeInventario(models.Model):
         # pylint: disable=no-member
         return f"Informe {self.tipo_exportacion.upper()} - {self.usuario} - {self.fecha.strftime(
             '%Y-%m-%d %H:%M')}"
+            
+class OrdenCompra(models.Model):
+    ESTADOS = [
+        ('sugerida', 'Sugerida'),
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('recepcionada', 'Recepcionada'),
+        ('cancelada', 'Cancelada'),
+    ]
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='sugerida')
+    observaciones = models.TextField(blank=True)
+
+    # Nuevos campos
+    usuario_aprobacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_aprobadas'
+    )
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True)
+    fecha_recepcion = models.DateTimeField(null=True, blank=True)
+    fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Orden #{self.id} - {self.get_estado_display()}"
+
+class ItemOrdenCompra(models.Model):
+    orden = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.producto.nombre} x {self.cantidad}"
+    def subtotal(self):
+        return self.cantidad * (self.precio_unitario or 0)
+
+class OrdenCompraLog(models.Model):
+    orden = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='logs')
+    fecha = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20)
+    descripcion = models.TextField()
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"{self.fecha.strftime('%d/%m/%Y %H:%M')} - {self.estado}"
+    
