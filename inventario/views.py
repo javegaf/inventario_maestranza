@@ -21,14 +21,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.mail import send_mail
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, F, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
+from django.urls import reverse_lazy
+from django.views.generic import UpdateView
 # =====================================
 # Imports de terceros
 # =====================================
@@ -38,10 +39,10 @@ from xhtml2pdf import pisa
 # Imports locales
 # =====================================
 from .utils import exportar_excel_inventario, exportar_pdf_inventario
-
+from .forms import KitProductoForm, ProductoEnKitFormSet
 
 from .models import (
-    Producto, MovimientoInventario, Proveedor, KitProducto,
+    Producto, MovimientoInventario, ProductoEnKit, Proveedor, KitProducto,
     HistorialPrecio, AlertaStock, AuditoriaInventario, CompraProveedor,
     EvaluacionProveedor, InformeInventario, LoteProducto, HistorialLote,
     Proyecto, MaterialProyecto, AuditoriaInformeInventario, OrdenCompra, ItemOrdenCompra, OrdenCompraLog
@@ -548,21 +549,153 @@ def enviar_alerta_automatica(alertas):
         print(f"DEBUG: send_mail failed with error: {str(e)}")
         raise e
 
-# Kits
+#kits
 
 def lista_kits(request):
-    """Vista para listar los kits de productos."""
-    # pylint: disable=no-member
+    # Obtener parámetros de filtro
+    nombre = request.GET.get('nombre', '')
+    codigo = request.GET.get('codigo', '')
+    categoria = request.GET.get('categoria', '')
+    
+    # Construir queryset filtrado
     kits = KitProducto.objects.all()
-    return render(request, 'kits/lista_kits.html', {'kits': kits})
+    
+    if nombre:
+        kits = kits.filter(Q(nombre__icontains=nombre))
+    if codigo:
+        kits = kits.filter(Q(codigo__icontains=codigo))
+    if categoria:
+        kits = kits.filter(categoria=categoria)
+    
+    # Obtener categorías únicas para el filtro
+    categorias = KitProducto.objects.values_list('categoria', flat=True).distinct()
+    
+    # Paginación
+    paginator = Paginator(kits, 10)  # 10 items por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'kits/lista_kits.html', {
+        'page_obj': page_obj,
+        'categorias': categorias,
+        'request': request  # Para mantener los parámetros de filtro
+    })
 
 def crear_kit(request):
-    """Vista para crear un nuevo kit de productos."""
-    form = KitProductoForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        return redirect('lista_kits')
-    return render(request, 'kits/formulario_kit.html', {'form': form})
+    if request.method == 'POST':
+        print("\n=== DATOS POST RECIBIDOS ===")
+        print(request.POST)  # Debug completo
+        
+        form = KitProductoForm(request.POST)
+        formset = ProductoEnKitFormSet(request.POST, prefix='productos')
+        
+        if form.is_valid():
+            print("\n=== FORMULARIO VÁLIDO ===")
+            print("Datos limpios:", form.cleaned_data)
+            
+            if formset.is_valid():
+                try:
+                    with transaction.atomic():
+                        print("\n=== INTENTANDO GUARDAR ===")
+                        kit = form.save()
+                        print(f"Kit guardado - ID: {kit.id}, Código: {kit.codigo}")
+                        
+                        # Guardar productos del kit
+                        instances = formset.save(commit=False)
+                        for instance in instances:
+                            instance.kit = kit
+                            instance.save()
+                            print(f"Producto guardado: {instance.producto.nombre}")
+                        
+                        messages.success(request, "Kit creado exitosamente")
+                        return redirect('inventario:lista_kits')
+                        
+                except Exception as e:
+                    print(f"\n=== ERROR DURANTE GUARDADO ===")
+                    print(f"Tipo de error: {type(e)}")
+                    print(f"Mensaje: {str(e)}")
+                    messages.error(request, f"Error al guardar: {str(e)}")
+            else:
+                print("\n=== ERRORES EN FORMSET ===")
+                print(formset.errors)
+        else:
+            print("\n=== ERRORES EN FORMULARIO ===")
+            print(form.errors)
+    else:
+        form = KitProductoForm()
+        formset = ProductoEnKitFormSet(queryset=ProductoEnKit.objects.none(), prefix='productos')
+    
+    productos_disponibles = Producto.objects.filter(stock_actual__gt=0)
+    
+    return render(request, 'kits/formulario_kit.html', {
+        'form': form,
+        'productos_disponibles': productos_disponibles,
+        'productos_formset': formset,
+        'titulo': 'Crear Kit'
+    })
+
+def editar_kit(request, pk):
+    kit = get_object_or_404(KitProducto, pk=pk)
+    
+    if request.method == 'POST':
+        form = KitProductoForm(request.POST, instance=kit)
+        formset = ProductoEnKitFormSet(request.POST, instance=kit)
+        
+        if form.is_valid() and formset.is_valid():
+            form.save()
+            formset.save()
+            kit.verificar_estado()  # Actualizar estado
+            messages.success(request, "Kit actualizado exitosamente!")
+            return redirect('inventario:lista_kits')
+    else:
+        form = KitProductoForm(instance=kit)
+        formset = ProductoEnKitFormSet(instance=kit)
+    
+    return render(request, 'kits/formulario_kit.html', {
+        'form': form,
+        'productos_formset': formset,
+        'kit': kit,
+        'titulo': f'Editar Kit: {kit.nombre}'
+    })
+
+def detalle_kit(request, pk):
+    kit = get_object_or_404(KitProducto, pk=pk)
+    return render(request, 'kits/detalle_kit.html', {
+        'kit': kit
+    })
+
+class KitUpdateView(UpdateView):
+    model = KitProducto
+    form_class = KitProductoForm
+    template_name = 'kits/formulario_kit.html'
+    success_url = reverse_lazy('inventario:lista_kits')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['productos_formset'] = ProductoEnKitFormSet(
+                self.request.POST,
+                instance=self.object
+            )
+        else:
+            context['productos_formset'] = ProductoEnKitFormSet(
+                instance=self.object,
+                queryset=ProductoEnKit.objects.filter(kit=self.object)
+            )
+        context['titulo'] = 'Editar Kit'
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        productos_formset = context['productos_formset']
+        
+        if productos_formset.is_valid():
+            self.object = form.save()
+            productos_formset.instance = self.object
+            productos_formset.save()
+            return super().form_valid(form)
+        else:
+            return self.render_to_response(self.get_context_data(form=form))
 
 # Reportes
 

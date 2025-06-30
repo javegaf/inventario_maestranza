@@ -30,8 +30,8 @@ urlpatterns = [
 
     path('kits/', views.lista_kits, name='lista_kits'),
     path('kits/nuevo/', views.crear_kit, name='crear_kit'),
-    #path('kits/<int:kit_id>/editar/', views.editar_kit, name='editar_kit'),
-    #path('kits/<int:pk>/eliminar/', views.eliminar_kit, name='eliminar_kit'),
+    path('kits/editar/<int:pk>/', views.editar_kit, name='editar_kit'),
+    path('kits/detalle/<int:pk>/', views.detalle_kit, name='detalle_kit'),
 
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/exportar/csv/', views.exportar_csv, name='exportar_csv'),

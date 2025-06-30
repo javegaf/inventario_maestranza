@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}{% if kit %}Editar{% else %}Crear{% endif %} Kit{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">
+        <i class="bi bi-box-seam"></i> {% if kit %}Editar Kit: {{ kit.nombre }}{% else %}Crear Nuevo Kit{% endif %}
+    </h2>
+
+    <form method="post" class="needs-validation" novalidate>
+        {% csrf_token %}
+
+        <!-- Información del Kit -->
+        <div class="card mb-4 shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Información Principal</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre del Kit</label>
+                        {{ form.nombre }}
+                        <div class="invalid-feedback">
+                            Por favor ingrese un nombre válido.
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        {% if form.codigo_mostrar %}
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.codigo_mostrar.label }}</label>
+                            {{ form.codigo_mostrar }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.codigo_editable.label }}</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KST-</span>
+                                <input type="text" name="codigo_editable"
+                                id="id_codigo_editable"
+                                class="form-control"
+                                value="{{ form.codigo_editable.value|default:'' }}"
+                                placeholder="{{ form.codigo_editable.field.widget.attrs.placeholder }}">
+                            </div>
+                            <small class="form-text text-muted">{{ form.codigo_editable.help_text }}</small>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6">
+                            <label class="form-label">Código del Kit</label>
+                            <input type="text" class="form-control bg-light"
+                                value="Se generará automáticamente (KST-...)" readonly>
+                            <!-- Campo oculto para nuevos kits -->
+                            <input type="hidden" name="codigo_editable" value="">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.categoria.id_for_label }}" class="form-label">Categoría</label>
+                    {{ form.categoria }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Estado</label>
+                    <div class="form-check form-switch">
+                        {{ form.activo }}
+                        <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+                            {% if form.activo.value %}Kit activo{% else %}Kit inactivo{% endif %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+</div>
+
+<!-- Productos del Kit -->
+<div class="card mb-4 shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Componentes del Kit</h5>
+        <button type="button" class="btn btn-sm btn-light" id="add-product">
+            <i class="bi bi-plus-circle"></i> Agregar Producto
+        </button>
+    </div>
+    <div class="card-body">
+        {{ productos_formset.management_form }}
+        <div id="productos-container">
+            {% for form in productos_formset %}
+            <div class="row g-3 producto-form mb-3 border-bottom pb-3" id="producto-{{ forloop.counter0 }}">
+                {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                <div class="col-md-6">
+                    <label class="form-label">Producto</label>
+                    {{ form.producto }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Cantidad</label>
+                    {{ form.cantidad }}
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    {% if form.DELETE %}
+                    <div class="form-check">
+                        {{ form.DELETE }}
+                        <label class="btn btn-sm btn-danger ms-2" for="{{ form.DELETE.id_for_label }}">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </label>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if form.errors %}
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<div class="d-flex justify-content-between">
+    <a href="{% url 'inventario:lista_kits' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver al listado
+    </a>
+    <button type="submit" class="btn btn-success">
+        <i class="bi bi-save"></i> Guardar Kit
+    </button>
+</div>
+</form>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const totalFormsInput = document.getElementById('id_productos-TOTAL_FORMS');
+        const container = document.getElementById('productos-container');
+        const addButton = document.getElementById('add-product');
+
+        // Crear plantilla de formulario vacío independiente
+        const emptyFormTemplate = document.createElement('div');
+        emptyFormTemplate.className = 'row g-3 producto-form mb-3 border-bottom pb-3';
+        emptyFormTemplate.innerHTML = `
+        <input type="hidden" name="productos-__prefix__-id" id="id_productos-__prefix__-id">
+        <input type="hidden" name="productos-__prefix__-kit" id="id_productos-__prefix__-kit">
+        
+        <div class="col-md-6">
+            <label class="form-label">Producto</label>
+            <select name="productos-__prefix__-producto" class="form-select" id="id_productos-__prefix__-producto">
+                {% for producto in productos_disponibles %}
+                <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-3">
+            <label class="form-label">Cantidad</label>
+            <input type="number" name="productos-__prefix__-cantidad" min="1" value="1" 
+                class="form-control" id="id_productos-__prefix__-cantidad">
+        </div>
+        
+        <div class="col-md-3 d-flex align-items-end">
+            <input type="checkbox" name="productos-__prefix__-DELETE" id="id_productos-__prefix__-DELETE">
+            <label class="btn btn-sm btn-danger ms-2" for="id_productos-__prefix__-DELETE">
+                <i class="bi bi-trash"></i> Eliminar
+            </label>
+        </div>
+    `;
+
+        // Función para actualizar contador
+        function updateTotalForms() {
+            const visibleForms = container.querySelectorAll('.producto-form:not([style*="display: none"])');
+            totalFormsInput.value = visibleForms.length;
+        }
+
+        // Función para agregar nuevo formulario
+        addButton.addEventListener('click', function () {
+            const formNum = parseInt(totalFormsInput.value);
+            const newForm = emptyFormTemplate.cloneNode(true);
+
+            // Actualizar índices
+            newForm.id = `producto-${formNum}`;
+            newForm.innerHTML = newForm.innerHTML.replace(/__prefix__/g, formNum);
+
+            // Configurar botón de eliminar
+            const deleteBtn = newForm.querySelector('.btn-danger');
+            const deleteCheckbox = newForm.querySelector('[name$="-DELETE"]');
+
+            deleteBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                handleDeleteForm(newForm, deleteCheckbox);
+            });
+
+            container.appendChild(newForm);
+            updateTotalForms();
+        });
+
+        // Función para manejar eliminación
+        function handleDeleteForm(formElement, deleteCheckbox) {
+            const visibleForms = container.querySelectorAll('.producto-form:not([style*="display: none"])');
+
+            if (visibleForms.length <= 1) {
+                alert('El kit debe tener al menos un producto');
+                return;
+            }
+
+            // Marcar para eliminación y ocultar
+            deleteCheckbox.checked = true;
+            formElement.style.display = 'none';
+            updateTotalForms();
+        }
+
+        // Configurar botones de eliminar existentes
+        container.querySelectorAll('.btn-danger').forEach(btn => {
+            const formGroup = btn.closest('.producto-form');
+            const deleteCheckbox = formGroup.querySelector('[name$="-DELETE"]');
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                handleDeleteForm(formGroup, deleteCheckbox);
+            });
+        });
+
+        // Inicializar contador
+        updateTotalForms();
+    });
+</script>
+{% endblock %}
